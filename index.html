@@ -1,0 +1,1977 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>⛳ 高尔夫计分器</title>
+<style>
+  :root {
+    --bg: #f3f2ec;
+    --card: #ffffff;
+    --ink: #18201b;
+    --muted: #8a938b;
+    --line: #e8eae3;
+    --green: #15835a;
+    --green-2: #0f6b48;
+    --green-grad: linear-gradient(135deg, #1b8a5c 0%, #0f6b48 100%);
+    --green-soft: #e7f3ec;
+    --accent: #d9730d;
+    --gold: #c79a3a;
+    --good: #15835a;
+    --left: #2f6fb0;
+    --right: #d9730d;
+    --bad: #c0392b;
+    --warn: #b45309;
+    --radius: 18px;
+    --radius-sm: 12px;
+    --shadow: 0 1px 2px rgba(24,32,27,.05), 0 12px 30px rgba(24,32,27,.07);
+    --shadow-sm: 0 1px 2px rgba(24,32,27,.04), 0 4px 12px rgba(24,32,27,.05);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Helvetica Neue", "Microsoft YaHei", sans-serif;
+    background: var(--bg); color: var(--ink);
+    padding: 0 12px 96px; font-size: 15px; line-height: 1.5;
+    font-variant-numeric: tabular-nums;
+  }
+  .wrap { max-width: 620px; margin: 0 auto; }
+
+  /* 顶栏 */
+  .appbar {
+    position: sticky; top: 0; z-index: 60;
+    margin: 0 -12px 14px; padding: 13px 16px 11px;
+    background: var(--green-grad);
+    box-shadow: 0 4px 16px rgba(15,107,72,.22);
+    display: flex; align-items: center; gap: 10px; color: #fff;
+  }
+  .appbar .logo {
+    width: 34px; height: 34px; border-radius: 11px; background: rgba(255,255,255,.18);
+    color: #fff; display: flex; align-items: center; justify-content: center; font-size: 18px;
+    backdrop-filter: blur(4px);
+  }
+  .appbar .t1 { font-size: 16px; font-weight: 700; letter-spacing: .3px; color: #fff; }
+  .appbar .t2 { font-size: 11.5px; color: rgba(255,255,255,.82); margin-top: 1px; }
+  .appbar .spacer { flex: 1; }
+  .appbar button.small.ghost { background: rgba(255,255,255,.16); color: #fff; border-color: rgba(255,255,255,.4); }
+  .appbar button.small.ghost:active { background: rgba(255,255,255,.28); }
+
+  .card {
+    background: var(--card); border-radius: var(--radius);
+    box-shadow: var(--shadow); padding: 16px; margin-bottom: 14px;
+    border: 1px solid var(--line);
+  }
+  .card-title {
+    display: flex; align-items: center; gap: 9px; font-weight: 700; font-size: 15px;
+    margin-bottom: 14px; letter-spacing: .3px; color: var(--ink);
+  }
+  .card-title .icon {
+    width: 26px; height: 26px; border-radius: 9px; background: var(--green-grad); color: #fff;
+    display: inline-flex; align-items: center; justify-content: center; font-size: 13px;
+    box-shadow: 0 2px 6px rgba(15,107,72,.25);
+  }
+  .card-title .tail { margin-left: auto; font-weight: 500; font-size: 12px; color: var(--muted); }
+
+  /* 场地信息 */
+  .course-head { display: flex; gap: 10px; align-items: flex-end; flex-wrap: wrap; }
+  .course-head .name-field { flex: 1 1 200px; }
+  .course-head input#courseName {
+    border: none; border-bottom: 1.5px solid transparent; background: transparent;
+    font-size: 19px; font-weight: 700; padding: 2px 0; width: 100%; color: var(--ink);
+  }
+  .course-head input#courseName:focus { outline: none; border-bottom-color: var(--green); }
+  .tools { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
+
+  .field { min-width: 100px; }
+  .field label { display: block; font-size: 11.5px; color: var(--muted); margin-bottom: 4px; font-weight: 600; letter-spacing: .3px; }
+  .field input, .field select {
+    border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 9px 11px;
+    font-size: 14px; background: #fafbf8; color: var(--ink); width: 100%;
+    transition: border-color .15s, box-shadow .15s, background .15s;
+  }
+  .field input:focus, .field select:focus { outline: none; background: #fff; border-color: var(--green); box-shadow: 0 0 0 3px var(--green-soft); }
+  .field-row { display: flex; gap: 10px; flex-wrap: wrap; }
+
+  button {
+    border: none; border-radius: var(--radius-sm); padding: 9px 14px; font-size: 14px;
+    cursor: pointer; background: #eef0eb; color: var(--ink); font-weight: 600;
+    transition: transform .08s ease, filter .15s, box-shadow .15s;
+  }
+  button:active { transform: scale(.97); }
+  button:hover { filter: brightness(.98); }
+  button.primary { background: var(--green-grad); color: #fff; box-shadow: 0 3px 10px rgba(15,107,72,.28); }
+  button.primary:active { box-shadow: 0 1px 4px rgba(15,107,72,.3); }
+  button.ghost { background: #fff; border: 1px solid var(--line); }
+  button.ghost:hover { background: #f7f9f5; }
+  button.danger { background: #fdeceb; color: #b42318; }
+  button.small { padding: 7px 12px; font-size: 13px; border-radius: 9px; }
+  button.tiny { padding: 4px 8px; font-size: 12px; border-radius: 7px; }
+
+  /* 粘性汇总条（重点视觉区） */
+  .summary-bar {
+    position: sticky; top: 56px; z-index: 40;
+    background: var(--green-grad); border: none; border-radius: 16px;
+    box-shadow: 0 8px 22px rgba(15,107,72,.28);
+    padding: 14px 16px; margin-bottom: 12px; color: #fff;
+  }
+  .summary-bar .row1 { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .summary-bar .big { font-size: 28px; font-weight: 800; letter-spacing: -.5px; color: #fff; }
+  .summary-bar .rel { font-size: 14px; font-weight: 700; color: #fff; }
+  .summary-bar .rel.diff.good { color: #bff0d6; }
+  .summary-bar .rel.diff.bad { color: #ffc7a8; }
+  .summary-bar .meta { margin-left: auto; flex: 0 0 auto; flex-shrink: 0; display: flex; gap: 16px; font-size: 12px; color: rgba(255,255,255,.8); text-align: right; }
+  .summary-bar .meta > span { white-space: nowrap; }
+  .summary-bar .meta b { display: block; font-size: 15px; color: #fff; font-weight: 700; }
+
+  /* 总分段位配色：100以上 / 破百 / 破九 / 破八 / 标准杆以下 */
+  .tier-over100 { color: #8a958f; }
+  .tier-u100   { color: #d9730d; }
+  .tier-u90    { color: #c79a3a; }
+  .tier-u80    { color: #1b8a5c; }
+  .tier-under  { color: #0fae6b; }
+  .tierbadge {
+    display: inline-flex; align-items: center; gap: 3px; margin-left: 8px;
+    font-size: 11px; font-weight: 800; color: #fff;
+    padding: 3px 9px; border-radius: 999px; letter-spacing: .2px; white-space: nowrap;
+    box-shadow: 0 1px 3px rgba(20,30,25,.18);
+  }
+  .tierbadge.over100 { background: #8a958f; }
+  .tierbadge.u100   { background: #d9730d; }
+  .tierbadge.u90    { background: #c79a3a; }
+  .tierbadge.u80    { background: #1b8a5c; }
+  .tierbadge.under  { background: linear-gradient(135deg,#16c47f,#0a8f57); box-shadow: 0 1px 5px rgba(15,174,107,.55); }
+  .progress { height: 7px; border-radius: 999px; background: rgba(255,255,255,.22); margin-top: 10px; overflow: hidden; }
+  .progress > i { display: block; height: 100%; background: linear-gradient(90deg,#ffd874,#ffb347); border-radius: 999px; transition: width .3s ease; }
+
+  /* chips */
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 4px; background: var(--green-soft);
+    color: var(--green); border-radius: 999px; padding: 5px 11px; font-size: 12.5px; font-weight: 700;
+    white-space: nowrap; box-shadow: inset 0 0 0 1px rgba(21,131,90,.08);
+  }
+  .chip.plain { background: #eef0eb; color: var(--ink); box-shadow: none; }
+  .chip.warn { background: #fdf1e3; color: var(--warn); box-shadow: none; }
+
+  /* 记分卡表 */
+  table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 14px; }
+  th {
+    color: var(--muted); font-weight: 700; font-size: 11px; padding: 9px 4px;
+    text-align: center; border-bottom: 2px solid var(--line); letter-spacing: .6px;
+    background: #f7f9f5;
+  }
+  td { padding: 11px 4px; text-align: center; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  #scoreTable tbody tr.hole-row:nth-child(even) td { background: #fafbf8; }
+  #scoreTable tr.hole-row { cursor: pointer; transition: background .12s; }
+  #scoreTable tr.hole-row:hover td { background: #eef6f0; }
+  #scoreTable tr.hole-row:active td { background: #e3f0e8; }
+  tr.done td { color: var(--ink); }
+  tr.todo .strokes { color: #c2c9c4; }
+  tr.total-row td { font-weight: 800; border-bottom: none; background: #eef3ee !important; }
+  tr.total-row td:first-child { border-radius: 10px 0 0 10px; }
+  tr.total-row td:last-child { border-radius: 0 10px 10px 0; }
+  .hole-no { font-weight: 700; color: var(--ink); }
+  .hole-tag { display: block; font-size: 9.5px; font-weight: 500; color: var(--muted);
+    line-height: 1.25; max-width: 72px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .yard { color: var(--muted); font-size: 11px; }
+  .par-cell { text-decoration: underline dotted #cdd4cd; text-underline-offset: 3px; cursor: pointer; }
+  .strokes { font-weight: 800; font-size: 18px; color: var(--ink); }
+  .gir-cell { color: var(--muted); font-size: 12.5px; }
+  .gir-yes { color: var(--good); font-weight: 700; }
+  .gir-mark { font-size: 10px; background: var(--green); color: #fff; border-radius: 5px; padding: 1px 5px; font-weight: 700; }
+  .diff { font-weight: 800; font-size: 14px; }
+  .diff.good { color: var(--good); }
+  .diff.bad { color: var(--accent); }
+  #scoreTable td.diff { border-radius: 10px; padding: 6px 4px; min-width: 56px; background: #f1f3ee; }
+  #scoreTable td.diff.good { background: var(--green-soft); color: var(--good); }
+  #scoreTable td.diff.bad { background: #fdeadf; color: var(--accent); }
+  .shots { text-align: left; font-size: 12px; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
+  .edit-btn { font-size: 15px; cursor: pointer; background: none; border: none; padding: 2px 4px; opacity: .45; transition: opacity .12s; }
+  .edit-btn:hover { opacity: 1; }
+
+  .club-stats td { font-size: 13px; }
+  .pct-good { color: var(--good); font-weight: 700; }
+  .pct-left { color: var(--left); }
+  .pct-right { color: var(--right); }
+  .pct-thin { color: #b42318; }
+  .pct-fat { color: #7e57a3; }
+  .stat-footer { text-align: center; color: var(--muted); font-size: 12.5px; margin-top: 8px; }
+
+  /* 技术统计 */
+  .tech-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .tech-item { background: #fafbf8; border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 11px 12px; }
+  .tech-item .label { font-size: 11.5px; color: var(--muted); }
+  .tech-item .value { font-size: 19px; font-weight: 800; margin-top: 2px; letter-spacing: -.3px; color: var(--ink); }
+  .tech-item .sub { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+  .tech-item.full { grid-column: 1 / -1; }
+
+  .section-label {
+    font-weight: 700; font-size: 13px; margin: 16px 0 8px; padding-left: 8px;
+    border-left: 3px solid var(--green);
+  }
+  .hint { font-size: 12px; color: var(--muted); line-height: 1.7; }
+  .divider { height: 1px; background: var(--line); margin: 14px 0; }
+
+  /* 弹窗 */
+  .overlay {
+    display: none; position: fixed; inset: 0; background: rgba(20,30,25,.45);
+    z-index: 100; align-items: flex-end; justify-content: center;
+  }
+  .overlay.show { display: flex; animation: fade .18s ease; }
+  @keyframes fade { from { opacity: 0 } to { opacity: 1 } }
+  .modal {
+    background: #fff; border-radius: 22px 22px 0 0; width: 100%; max-width: 620px;
+    max-height: 92vh; overflow-y: auto; padding: 18px 16px 26px;
+    box-shadow: 0 -8px 30px rgba(24,32,27,.18);
+    animation: slide .22s cubic-bezier(.2,.8,.2,1);
+  }
+  @keyframes slide { from { transform: translateY(24px) } to { transform: none } }
+  @media (min-width: 700px) {
+    .overlay { align-items: center; }
+    .modal { border-radius: 22px; box-shadow: 0 20px 60px rgba(24,32,27,.28); }
+  }
+  .modal h3 { font-size: 18px; margin-bottom: 2px; letter-spacing: .2px; }
+  .modal .hole-info { color: var(--muted); font-size: 12.5px; margin-bottom: 14px; }
+  .modal-close { float: right; }
+  .modal-nav { display: flex; gap: 8px; margin-bottom: 12px; }
+  .modal-nav button { flex: 1; }
+
+  .seg { display: flex; border: 1px solid var(--line); border-radius: var(--radius-sm); overflow: hidden; background: #f3f4ef; }
+  .seg button { flex: 1; border-radius: 0; background: transparent; color: var(--muted); font-weight: 600; padding: 9px 2px; font-size: 13px; }
+  .seg button.on { background: var(--green-grad); color: #fff; }
+
+  /* 数字步进器 + 快捷值 */
+  .stepper { display: flex; align-items: center; gap: 10px; }
+  .stepper button {
+    width: 44px; height: 44px; border-radius: 13px; background: #eef0eb; font-size: 22px;
+    font-weight: 700; padding: 0; flex: 0 0 auto; color: var(--green);
+    box-shadow: inset 0 0 0 1px rgba(21,131,90,.08);
+  }
+  .stepper button:active { background: #e2e7de; }
+  .stepper input {
+    flex: 1; text-align: center; font-size: 24px; font-weight: 800; height: 44px;
+    border: 1px solid var(--line); border-radius: 13px; background: #fafbf8; width: 100%; color: var(--ink);
+  }
+  .stepper input:focus { outline: none; border-color: var(--green); box-shadow: 0 0 0 3px var(--green-soft); background: #fff; }
+  .quick { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+  .quick button { padding: 6px 12px; font-size: 13px; background: #eef0eb; border-radius: 9px; color: var(--ink); }
+  .quick button.on { background: var(--green-grad); color: #fff; box-shadow: 0 2px 8px rgba(15,107,72,.25); }
+
+  .shot-list { list-style: none; }
+  .shot-list li {
+    display: flex; align-items: center; gap: 8px; padding: 8px;
+    border-bottom: 1px dashed var(--line); font-size: 14px;
+  }
+  .shot-list .idx { color: var(--muted); width: 24px; font-size: 12px; }
+  .shot-list .club { font-weight: 700; min-width: 52px; }
+  .mark { font-weight: 700; }
+  .m-good { color: var(--good); } .m-left { color: var(--left); }
+  .m-right { color: var(--right); } .m-thin { color: #b42318; }
+  .m-fat { color: #7e57a3; } .m-shank { color: #d946ef; } .m-penalty { color: #b42318; } .m-holed { color: var(--ink); }
+  .shot-list .del { margin-left: auto; background: none; color: #b42318; font-size: 12px; padding: 2px 6px; }
+  .add-shot { display: flex; gap: 8px; margin-top: 10px; }
+  .add-shot select { flex: 1; }
+  .modal-actions { display: flex; gap: 10px; margin-top: 18px; }
+  .modal-actions button { flex: 1; padding: 12px; font-size: 15px; }
+
+  .hole-edit td { padding: 4px; border-bottom: none; }
+  .hole-edit td.hlabel { font-weight: 700; width: 22px; font-size: 13px; }
+  .hole-edit input, .hole-edit select {
+    width: 100%; border: 1px solid var(--line); border-radius: 8px;
+    padding: 6px 4px; font-size: 14px; background: #fff; text-align: center;
+  }
+
+  /* 悬浮按钮 */
+  .fab {
+    position: fixed; right: 16px; bottom: 20px; z-index: 80;
+    background: var(--green-grad); color: #fff; border-radius: 999px;
+    padding: 13px 22px; font-size: 15px; font-weight: 700;
+    box-shadow: 0 8px 24px rgba(15,107,72,.4); border: none;
+  }
+  .fab:active { transform: scale(.96); }
+  .toast {
+    position: fixed; bottom: 84px; left: 50%; transform: translateX(-50%);
+    background: #1c2420; color: #fff; border-radius: 999px; padding: 9px 18px;
+    font-size: 13px; opacity: 0; transition: opacity .25s; pointer-events: none; z-index: 200;
+    max-width: 88vw; text-align: center;
+  }
+  .toast.show { opacity: .95; }
+</style>
+
+</head>
+<body>
+<div class="wrap">
+
+  <div class="appbar">
+    <div class="logo">⛳</div>
+    <div>
+      <div class="t1">高尔夫计分器</div>
+      <div class="t2">记录每一杆 · 看清每一洞</div>
+    </div>
+    <div class="spacer"></div>
+    <button class="small ghost" id="btnTopNew">＋ 新一轮</button>
+  </div>
+
+  <!-- 记分卡 -->
+  <div class="card">
+    <div class="card-title"><span class="icon">📋</span> 记分卡 <span class="tail" id="cardTail"></span></div>
+    <div class="course-head">
+      <div class="name-field">
+        <label style="display:block;font-size:11.5px;color:var(--muted);margin-bottom:4px;font-weight:600">球场 / 组合</label>
+        <input id="courseName" placeholder="点击填写球场名称">
+      </div>
+      <div class="field" style="flex:0 0 156px"><label>日期</label><input id="roundDate" type="date"></div>
+      <div class="field" style="flex:0 0 150px"><label>历史轮次</label><select id="roundSel"></select></div>
+    </div>
+    <div class="tools">
+      <button class="small ghost" id="btnCombo">🔀 拼场</button>
+      <button class="small ghost" id="btnCourse">🏌️ 球场 / 洞</button>
+      <button class="small ghost danger" id="btnDel">删除本轮</button>
+    </div>
+    <div class="summary-bar" id="sumBar" style="margin-top:12px"></div>
+    <div class="chips" id="chips"></div>
+    <div style="overflow-x:auto">
+    <table id="scoreTable">
+      <thead>
+        <tr>
+          <th>洞</th><th>Par</th><th>上</th><th>推</th><th>杆</th><th>成绩</th><th style="text-align:left">击球</th><th></th>
+        </tr>
+      </thead>
+      <tbody id="scoreBody"></tbody>
+    </table>
+    </div>
+    <details style="margin-top:12px">
+      <summary class="hint" style="cursor:pointer">📐 自动计算规则是什么？</summary>
+      <div class="hint" style="margin-top:6px">
+        上果岭杆数 = 总杆数 − 推杆数；<b>≤ Par−2 即记 GIR</b>（标准杆上果岭）。
+        总杆以手动填写优先；未填写时自动按逐杆击球次数计算（罚杆也算一杆）。相对标准杆、球杆统计、救球率、沙坑救球率等全部自动算，
+        只有<b>总杆 / 推杆 / 开球上球道 / 沙坑次数</b>需要你手填。
+      </div>
+    </details>
+  </div>
+
+  <!-- 各球杆统计 -->
+  <div class="card">
+    <div class="card-title"><span class="icon">⛳</span> 各球杆统计</div>
+    <div style="overflow-x:auto">
+    <table class="club-stats">
+      <thead>
+        <tr><th>球杆</th><th>总杆</th><th>✓好杆</th><th>←偏左</th><th>→偏右</th><th>↑打薄</th><th>↓打深</th><th>⇢Shank</th><th>✗罚杆</th></tr>
+      </thead>
+      <tbody id="clubBody"></tbody>
+    </table>
+    </div>
+    <div class="stat-footer" id="clubFooter"></div>
+  </div>
+
+  <!-- 云同步 -->
+  <div class="card">
+    <div class="card-title"><span class="icon">☁️</span> 云同步（Supabase）</div>
+    <div class="hint" id="cloudStatus" style="margin-bottom:10px">未配置。填好下面的 URL 和 key 后即可登录，数据跟着账号走。</div>
+    <div class="field-row">
+      <div class="field" style="flex:2"><label>Project URL（粘等号后面的部分）</label><input id="sbUrl" placeholder="https://xxxx.supabase.co"></div>
+      <div class="field" style="flex:2"><label>anon / publishable key（粘等号后面的部分）</label><input id="sbKey" placeholder="eyJ... 或 sb_publishable_..."></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>邮箱</label><input id="sbEmail" type="email" placeholder="you@example.com"></div>
+      <div class="field"><label>密码</label><input id="sbPass" type="password" placeholder="至少 6 位"></div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="small" id="sbSave">保存配置</button>
+      <button class="small primary" id="sbSignUp">注册</button>
+      <button class="small primary" id="sbSignIn">登录</button>
+      <button class="small" id="sbSignOut">登出</button>
+      <button class="small" id="sbPush">⬆️ 立即上传</button>
+      <button class="small" id="sbPull">⬇️ 立即拉取</button>
+      <button class="small" id="sbCheck">🔍 自检</button>
+    </div>
+    <details style="margin-top:12px">
+      <summary class="hint" style="cursor:pointer">首次使用：先在 Supabase 执行一次这段 SQL（点开复制）</summary>
+      <textarea id="sbSql" readonly rows="12" style="width:100%;margin-top:8px;border:1px solid var(--line);border-radius:8px;padding:8px;font-size:11px;font-family:monospace"></textarea>
+      <div class="hint" style="margin-top:6px">
+        步骤：① Supabase 后台 → SQL Editor → 粘贴执行 ② Settings → API 里复制 Project URL 和 anon public key 粘到上面
+        ③ Authentication → Providers → Email，建议关掉 <b>Confirm email</b>，注册后可直接登录。
+      </div>
+    </details>
+  </div>
+
+  <!-- 技术统计 -->
+  <div class="card">
+    <div class="card-title"><span class="icon">📊</span> 技术统计</div>
+    <div class="tech-grid" id="techGrid"></div>
+  </div>
+
+  <div style="text-align:center; display:flex; gap:8px; justify-content:center; flex-wrap:wrap;">
+    <button class="small" id="btnExport">💾 导出备份</button>
+    <button class="small" id="btnCopy">📋 复制全部数据</button>
+    <button class="small" id="btnPaste">📥 粘贴导入</button>
+    <button class="small" id="btnImport">文件导入</button>
+    <button class="small danger" id="btnClear">清空本轮成绩</button>
+  </div>
+  <input type="file" id="fileInput" accept=".json" style="display:none">
+  <div class="card" style="margin-top:16px">
+    <div class="card-title"><span class="icon">🗄️</span> 数据保存在哪</div>
+    <div class="hint" style="line-height:1.8">
+      • 不清缓存就能一直看到（几个月前的轮次也在）。<b>换设备请用云同步或导出备份</b>。<br>
+      • 换手机 / 换浏览器 / 清理浏览数据会<b>丢</b>。换设备请用「📋 复制全部数据」→ 微信发给自己 → 另一台设备点「📥 粘贴导入」。<br>
+      • iPhone 用 Safari 时建议<b>「添加到主屏幕」</b>：没加主屏幕的站点，Safari 可能在长期不用后清掉本地数据。<br>
+      • 建议每月导出一次备份文件存档。
+    </div>
+  </div>
+
+  <!-- 历史统计（页面最下方） -->
+  <div class="card">
+    <div class="card-title"><span class="icon">📈</span> 历史统计</div>
+    <div class="field-row" style="margin-bottom:14px">
+      <div class="field"><label>年份</label><select id="hfYear" onchange="applyHistFilter()"></select></div>
+      <div class="field"><label>月份</label><select id="hfMonth" onchange="applyHistFilter()"></select></div>
+      <div class="field" style="flex:2"><label>球场</label><select id="hfCourse" onchange="applyHistFilter()"></select></div>
+      <div class="field" style="flex:0 0 auto"><label>&nbsp;</label><button class="small" onclick="resetHistFilter()">清除筛选</button></div>
+    </div>
+    <div class="hint" id="histScope" style="margin-bottom:10px"></div>
+    <div class="tech-grid" id="histGrid"></div>
+    <div class="section-label" style="margin-top:14px" id="histPeriodLabel">按时间汇总</div>
+    <div style="overflow-x:auto"><table id="histPeriodTable" style="font-size:13px"></table></div>
+    <div class="section-label" style="margin-top:14px">各球场成绩</div>
+    <div style="overflow-x:auto"><table id="histCourseTable" style="font-size:13px"></table></div>
+    <div class="section-label" style="margin-top:14px">轮次明细（点行可切换）</div>
+    <div id="histTrend"></div>
+    <div style="overflow-x:auto"><table id="histList" style="font-size:13px"></table></div>
+  </div>
+</div>
+
+<!-- 洞编辑弹窗 -->
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <button class="modal-close small" onclick="closeModal()">✕ 关闭</button>
+    <h3 id="mTitle">第 1 洞</h3>
+    <div class="hole-info" id="mInfo"></div>
+
+    <div class="modal-nav">
+      <button class="ghost" onclick="goHole(-1)">◀ 上一洞</button>
+      <button class="ghost" onclick="goHole(1)">下一洞 ▶</button>
+    </div>
+
+    <div class="field-row">
+      <div class="field" style="flex:1"><label>本洞 Par</label>
+        <select id="fPar" onchange="writeHole();syncQuick()"><option value="3">Par 3</option><option value="4">Par 4</option><option value="5">Par 5</option></select>
+      </div>
+      <div class="field" style="flex:1"><label>本洞码数</label>
+        <input type="number" id="fYards" min="50" max="800" oninput="writeHole();syncQuick()">
+      </div>
+      <div class="field" style="flex:0 0 auto"><label>&nbsp;</label>
+        <button class="small" onclick="syncHoleToCourse()">存入球场库</button>
+      </div>
+    </div>
+    <div class="hint" style="margin-top:-2px">发现球场数据不对？改完 Par/码数点「存入球场库」，以后用它开的轮次都会用新数据。</div>
+
+    <div class="section-label">⚡ 成绩</div>
+    <div class="field-row">
+      <div class="field">
+        <label>总杆数</label>
+        <div class="stepper">
+          <button onclick="stepVal('fStrokes',-1)">−</button>
+          <input type="number" id="fStrokes" min="1" max="15" oninput="syncQuick();writeHole()">
+          <button onclick="stepVal('fStrokes',1)">＋</button>
+        </div>
+        <div class="quick" id="qStrokes"></div>
+      </div>
+      <div class="field">
+        <label>推杆数</label>
+        <div class="stepper">
+          <button onclick="stepVal('fPutts',-1)">−</button>
+          <input type="number" id="fPutts" min="0" max="10" oninput="syncQuick();writeHole()">
+          <button onclick="stepVal('fPutts',1)">＋</button>
+        </div>
+        <div class="quick" id="qPutts"></div>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field" style="flex:1">
+        <label>沙坑次数</label>
+        <div class="quick" id="qBunkers"></div>
+        <input type="number" id="fBunkers" min="0" max="9" style="display:none">
+      </div>
+    </div>
+    <div class="field-row" id="fairwayRow">
+      <div class="field" style="flex:2">
+        <label>开球上球道（Par 4/5）</label>
+        <div class="seg" id="fairwaySeg">
+          <button data-v="hit">✓ 上了</button>
+          <button data-v="left">← 左偏</button>
+          <button data-v="right">→ 右偏</button>
+          <button data-v="miss">✗ 未上</button>
+        </div>
+      </div>
+    </div>
+
+
+    <div class="section-label">🏌️ 逐杆记录（可选，未填总杆时按击球数自动算）</div>
+    <ul class="shot-list" id="shotList"></ul>
+    <div class="add-shot">
+      <select id="shotClub"></select>
+      <select id="shotResult">
+        <option value="good">✓ 好杆</option>
+        <option value="left">← 偏左</option>
+        <option value="right">→ 偏右</option>
+        <option value="thin">↑ 打薄</option>
+        <option value="fat">↓ 打深/挖地</option>
+        <option value="shank">⇢ Shank 插鞘（杆颈球）</option>
+        <option value="penalty">✗ 罚杆（下水/OB）</option>
+        <option value="holed">◎ 进洞！</option>
+      </select>
+      <button class="primary small" onclick="addShot()">添加</button>
+    </div>
+    <div class="hint">
+      💡 总杆以手动填写为准；未填时自动按逐杆击球次数计算（含罚杆）。上果岭杆数 = 总杆 − 推杆，≤ Par−2 即为 GIR（标准杆上果岭）。沙坑救球 = 进沙坑后仍打回标准杆。
+    </div>
+    <div class="modal-actions">
+      <button class="ghost danger" onclick="clearHole()">清空</button>
+      <button class="ghost" onclick="saveHole()">保存</button>
+      <button class="primary" onclick="saveAndNext()">保存并下一洞 ▶</button>
+    </div>
+  </div>
+</div>
+
+<!-- 球场/球洞编辑弹窗 -->
+<div class="overlay" id="courseOverlay">
+  <div class="modal">
+    <button class="modal-close small" onclick="closeCourseModal()">✕ 关闭</button>
+    <h3>🏌️ 球场设置</h3>
+    <div class="hole-info">可以改每一洞的 Par 与码数，也可以把球场改成 9 洞或自定义洞数。已记录的成绩不会被清空。</div>
+    <div class="field-row">
+      <div class="field" style="flex:2"><label>球场名称</label><input id="cName" placeholder="球场名称"></div>
+      <div class="field" style="flex:0 0 150px"><label>洞数</label>
+        <div class="seg" id="holeCountSeg">
+          <button data-n="9">9 洞</button><button data-n="18">18 洞</button>
+        </div>
+      </div>
+    </div>
+    <div class="section-label">每洞设置</div>
+    <table class="hole-edit">
+      <thead><tr><th>洞</th><th>Par</th><th>码数</th><th>洞</th><th>Par</th><th>码数</th></tr></thead>
+      <tbody id="holeEditBody"></tbody>
+    </table>
+    <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+      <button class="small" onclick="addHole()">＋ 加一洞</button>
+      <button class="small" onclick="removeHole()">－ 删末洞</button>
+      <button class="small" onclick="resetCourse()">重置为默认 18 洞</button>
+    </div>
+    <div class="hint">总 Par：<b id="cTotalPar"></b> · 总码数：<b id="cTotalYards"></b></div>
+
+    <div class="section-label">🗂️ 球场库（A 场 / B 场 …）</div>
+    <div class="hint" style="margin-bottom:8px">已内置 8 座球场，可在「🔀 拼场」里自由组合前九 / 后九。名字带「（待校准）」的是按官方总长估算的逐洞码数，请用现场记分卡点「编辑」校正。</div>
+    <div class="field-row">
+      <div class="field" style="flex:2"><label>保存当前设置为球场</label><input id="libNewName" placeholder="例如：A 场 / B 场"></div>
+      <div class="field" style="flex:0 0 auto"><label>&nbsp;</label><button class="primary small" onclick="saveToLibrary()">存入球场库</button></div>
+    </div>
+    <table id="libTable" style="font-size:13px"></table>
+
+    <div class="modal-actions">
+      <button class="primary" onclick="saveCourse()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- 拼场弹窗 -->
+<div class="overlay" id="comboOverlay">
+  <div class="modal">
+    <button class="modal-close small" onclick="closeComboModal()">✕ 关闭</button>
+    <h3>🔀 拼场（九洞组合）</h3>
+    <div class="hole-info">从球场库里挑九洞拼成今天的 18 洞，例如「B 场后九 + A 场后九」。常用组合可以存起来，下次一键套用。</div>
+    <div class="field-row">
+      <div class="field"><label>第 1 段（前九洞）</label>
+        <div style="display:flex;gap:6px">
+          <select id="cbCourse1" style="flex:2" onchange="renderComboPreview()"></select>
+          <select id="cbPart1" onchange="renderComboPreview()">
+            <option value="front">前 9 洞</option><option value="back">后 9 洞</option><option value="all">全部 18 洞</option>
+          </select>
+        </div>
+      </div>
+      <div class="field"><label>第 2 段（后九洞）</label>
+        <div style="display:flex;gap:6px">
+          <select id="cbCourse2" style="flex:2" onchange="renderComboPreview()"></select>
+          <select id="cbPart2" onchange="renderComboPreview()">
+            <option value="back">后 9 洞</option><option value="front">前 9 洞</option><option value="all">全部 18 洞</option><option value="none">不使用</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="section-label">组合预览</div>
+    <table class="hole-edit" style="font-size:13px">
+      <thead><tr><th>本轮洞号</th><th>来源</th><th>Par</th><th>码数</th><th>本轮洞号</th><th>来源</th><th>Par</th><th>码数</th></tr></thead>
+      <tbody id="comboPreviewBody"></tbody>
+    </table>
+    <div class="hint" id="comboSummary"></div>
+    <div class="section-label">⭐ 常用组合</div>
+    <div id="comboList"></div>
+    <div class="field-row" style="margin-top:10px">
+      <div class="field" style="flex:2"><label>把当前组合存为常用</label><input id="comboNewName" placeholder="例如：B后九 + A后九"></div>
+      <div class="field" style="flex:0 0 auto"><label>&nbsp;</label><button class="small" onclick="saveCombo()">保存组合</button></div>
+    </div>
+    <div class="modal-actions">
+      <button class="primary" onclick="applyCombo()">套用到本轮</button>
+    </div>
+    <div class="hint">套用会按新组合重建 18 个洞的 Par/码数；如果本轮已经有成绩，会提示是否保留（洞数相同则按洞号保留成绩）。</div>
+  </div>
+</div>
+
+<!-- 粘贴导入弹窗 -->
+<div class="overlay" id="pasteOverlay">
+  <div class="modal">
+    <button class="modal-close small" onclick="closePasteModal()">✕ 关闭</button>
+    <h3>📥 粘贴导入</h3>
+    <div class="hole-info">把另一台设备上复制的 JSON 粘进来，会合并进现有数据（同 id 的轮次/球场不会重复添加）。</div>
+    <textarea id="pasteArea" rows="10" style="width:100%;border:1px solid var(--line);border-radius:8px;padding:10px;font-size:12px;font-family:monospace" placeholder='{"_type":"golf-scorecard", ... }'></textarea>
+    <div class="modal-actions">
+      <button class="primary" onclick="importFromPaste()">导入</button>
+      <button onclick="document.getElementById('pasteArea').value=''">清空</button>
+    </div>
+  </div>
+</div>
+
+<button class="fab" id="fab" onclick="jumpNextHole()">⛳ 记下一洞</button>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+/* ============ 数据 ============ */
+const DEFAULT_HOLES = [
+  {par:5,yards:485},{par:3,yards:165},{par:4,yards:367},{par:5,yards:540},
+  {par:4,yards:360},{par:4,yards:385},{par:4,yards:350},{par:3,yards:130},{par:4,yards:330},
+  {par:5,yards:410},{par:4,yards:320},{par:3,yards:150},{par:4,yards:335},
+  {par:4,yards:348},{par:4,yards:273},{par:3,yards:160},{par:5,yards:490},{par:4,yards:370}
+];
+/* 预置球场数据来自用户提供的记分卡（逐洞码数）。
+   注：名字带「（待校准）」的球场，公开渠道只查到总长度，逐洞码数是按总长等比铺的估算值，Par 总数正确但单洞可能与实际记分卡不符，请以现场记分卡为准并在球场库里编辑校正。
+   （艾力枫社东场 7192 码、香山国际首 18 洞 7618 码 / 蓝T 6673 码、万柳 9 洞 3634 码），
+   与蓝T 逐洞相加并不相等，因此球场名不再带标称总长，总码数一律由逐洞数据实算。
+   万柳 9 洞：俱乐部公布为 Par 36，按两杆五杆洞口径把第 1 洞记为 Par 5。 */
+const PRESET_COURSES = [
+  { name:"艾力枫社 A 场（东场）蓝T", holes:[
+    {par:4,yards:382},{par:4,yards:406},{par:3,yards:178},{par:5,yards:532},{par:4,yards:420},
+    {par:4,yards:368},{par:3,yards:212},{par:5,yards:516},{par:4,yards:400},{par:4,yards:396},
+    {par:4,yards:418},{par:5,yards:504},{par:3,yards:189},{par:4,yards:402},{par:5,yards:526},
+    {par:4,yards:376},{par:3,yards:201},{par:4,yards:374} ] },
+  { name:"艾力枫社 B 场（西场）蓝T", holes:[
+    {par:4,yards:369},{par:4,yards:392},{par:3,yards:164},{par:5,yards:508},{par:4,yards:387},
+    {par:3,yards:182},{par:5,yards:490},{par:4,yards:362},{par:4,yards:374},{par:4,yards:361},
+    {par:5,yards:492},{par:4,yards:384},{par:4,yards:344},{par:5,yards:496},{par:3,yards:191},
+    {par:4,yards:380},{par:3,yards:170},{par:4,yards:410} ] },
+  { name:"万柳 9 洞 蓝T", holes:[
+    {par:5,yards:386},{par:4,yards:364},{par:4,yards:379},{par:5,yards:510},{par:3,yards:173},
+    {par:4,yards:352},{par:4,yards:372},{par:3,yards:161},{par:4,yards:270} ] },
+  { name:"香山国际 蓝T", holes:[
+    {par:4,yards:392},{par:4,yards:376},{par:4,yards:443},{par:3,yards:204},{par:5,yards:528},
+    {par:4,yards:398},{par:4,yards:366},{par:3,yards:220},{par:5,yards:532},{par:4,yards:384},
+    {par:4,yards:416},{par:5,yards:502},{par:3,yards:192},{par:4,yards:428},{par:4,yards:362},
+    {par:3,yards:186},{par:5,yards:510},{par:4,yards:392} ] },
+  { name:"武汉天外天 蓝T", holes:[
+    {par:4,yards:412},{par:4,yards:404},{par:5,yards:530},{par:4,yards:381},{par:3,yards:186},
+    {par:5,yards:515},{par:3,yards:174},{par:4,yards:422},{par:4,yards:409},{par:4,yards:392},
+    {par:5,yards:560},{par:4,yards:365},{par:3,yards:190},{par:5,yards:574},{par:4,yards:421},
+    {par:3,yards:155},{par:4,yards:432},{par:4,yards:408} ] },
+  { name:"武汉金银湖 蓝T（待校准）", holes:[
+    {par:4,yards:430},{par:4,yards:420},{par:3,yards:185},{par:5,yards:570},{par:4,yards:415},
+    {par:4,yards:415},{par:3,yards:195},{par:5,yards:540},{par:4,yards:435},{par:4,yards:450},
+    {par:4,yards:415},{par:5,yards:565},{par:3,yards:170},{par:4,yards:410},{par:5,yards:535},
+    {par:4,yards:440},{par:3,yards:185},{par:4,yards:415} ] },
+  { name:"鄂州红莲湖 蓝T（待校准）", holes:[
+    {par:4,yards:420},{par:5,yards:525},{par:4,yards:440},{par:3,yards:185},{par:5,yards:525},
+    {par:4,yards:440},{par:4,yards:410},{par:3,yards:170},{par:4,yards:445},{par:4,yards:445},
+    {par:3,yards:195},{par:5,yards:525},{par:4,yards:440},{par:4,yards:440},{par:5,yards:535},
+    {par:3,yards:160},{par:4,yards:415},{par:4,yards:405} ] },
+  { name:"武汉驿山 蓝T（待校准）", holes:[
+    {par:4,yards:440},{par:4,yards:415},{par:5,yards:546},{par:3,yards:185},{par:4,yards:415},
+    {par:4,yards:440},{par:3,yards:165},{par:5,yards:565},{par:4,yards:425},{par:4,yards:440},
+    {par:5,yards:570},{par:4,yards:415},{par:3,yards:160},{par:5,yards:565},{par:4,yards:445},
+    {par:4,yards:445},{par:3,yards:170},{par:4,yards:430} ] }
+];
+const CLUBS = ["1号木","3号木","5号木","4h铁木","3i","4i","5i","6i","7i","8i","9i","Pw","50°","52°","56°","58°","60°","推杆","罚杆"];
+const MARK = { good:"✓", left:"←", right:"→", thin:"↑", fat:"↓", shank:"⇢", penalty:"✗", holed:"◎" };
+const MARK_CLS = { good:"m-good", left:"m-left", right:"m-right", thin:"m-thin", fat:"m-fat", shank:"m-shank", penalty:"m-penalty", holed:"m-holed" };
+const LS_KEY = "golf-scorecard-v1";
+const FW_LABEL = { hit:"✓", left:"←", right:"→", miss:"✗" };
+
+function newHole(d){ return { ...d, manualStrokes:null, putts:null, fairway:null, bunkers:0, shots:[] }; }
+function uid(){ return Date.now()+"_"+Math.random().toString(36).slice(2,7); }
+function makeCourse(name, holes){
+  return { id: uid(), name, holes: (holes||DEFAULT_HOLES).map(d=>({par:d.par, yards:d.yards})) };
+}
+function newRound(){
+  const c = (state && state.combos && state.combos.length) ? state.combos[0] : null;
+  const holes = c ? buildComboHoles(c.segments).holes : DEFAULT_HOLES.map(newHole);
+  return {
+    id: uid(),
+    course: c ? c.name : "新球场",
+    date: new Date().toISOString().slice(0,10),
+    combos: c ? c.segments.map(s=>({cid:s.cid, part:s.part})) : null,
+    holes,
+    updatedAt: new Date().toISOString()
+  };
+}
+var state = load();
+
+function load(){
+  let s = null;
+  try { s = JSON.parse(localStorage.getItem(LS_KEY)); } catch(e){}
+  if (!s || !s.rounds || !s.rounds.length){
+    const r = newRound(); r.course = "示例球场";
+    s = { rounds:[r], currentId: r.id };
+  }
+  // 删除墓碑：记录已删除轮次 id → 删除时间，防止云同步把删掉的轮次又拉回来
+  if (!s.deleted) s.deleted = {};
+  // 老数据补上球场库与组合
+  if (!s.courses || !s.courses.length){
+    s.courses = [ makeCourse("A 场"), makeCourse("B 场") ];
+  }
+  // 预置真实球场：清掉没改过的示例球场，写入预设，并修正引用
+  if (!s.presetsVersion){
+    const isUntouched = c => c.holes.length===18 &&
+      c.holes.every((h,i)=> h.par===DEFAULT_HOLES[i].par && h.yards===DEFAULT_HOLES[i].yards);
+    const alias = { "A 场":"艾力枫社 A 场（东场）蓝T", "B 场":"艾力枫社 B 场（西场）蓝T" };
+    const removed = new Map();
+    s.courses.forEach(c=>{ if (isUntouched(c)) removed.set(c.id, alias[c.name]); });
+    s.courses = s.courses.filter(c=> !isUntouched(c));
+    s.courses.forEach(c=>{ removed.forEach((newName, oldId)=>{ if (c.id===oldId) c.name = newName; }); });
+    (s.combos||[]).forEach(cm=>{
+      cm.segments.forEach(sg=>{
+        if (removed.has(sg.cid)){
+          const target = s.courses.find(c=>c.name===removed.get(sg.cid));
+          if (target) sg.cid = target.id;
+        }
+      });
+    });
+    s.presetsVersion = 1;
+  }
+  // 每次新增预置球场时把版本号 +1，老数据会自动补齐新球场（已改过的不动）
+  if (s.presetsVersion < 2){
+    PRESET_COURSES.forEach(p=>{
+      if (!s.courses.some(c=>c.name===p.name)) s.courses.push(makeCourse(p.name, p.holes));
+    });
+    s.presetsVersion = 2;
+  }
+  if (!s.combos || !s.combos.length){
+    const A = s.courses.find(c=>c.name.indexOf("A 场")>=0) || s.courses[0];
+    const B = s.courses.find(c=>c.name.indexOf("B 场")>=0) || s.courses[1] || s.courses[0];
+    s.combos = [{ id: uid(), name: "艾力枫社 B后九 + A后九", segments: [ {cid:B.id, part:"back"}, {cid:A.id, part:"back"} ] }];
+  }
+  return s;
+}
+/* ============ 历史统计（跨轮次） ============ */
+/* 整轮总杆段位：标准杆以下 > 破八 > 破九 > 破百 > 100以上（从高到低判断） */
+const TIER_LABEL = { over100:"未破百", u100:"破百 ✓", u90:"破九 ✓", u80:"破八 ✓", under:"低于标准杆 🏆" };
+function totalTier(t, par){
+  if (!t || t<=0) return "";
+  if (par && t<=par) return "under";
+  if (t<80) return "u80";
+  if (t<90) return "u90";
+  if (t<100) return "u100";
+  return "over100";
+}
+
+function roundStat(r){
+  let strokes=0, par=0, putts=0, gir=0, played=0, fwHit=0, fwTotal=0;
+  let eagle=0, birdie=0, parN=0, bogey=0, dbl=0, pens=0;
+  r.holes.forEach(h=>{
+    pens += penaltiesOf(h);
+    const s = strokesOf(h);
+    if (h.par>=4){ fwTotal++; if (h.fairway==="hit") fwHit++; }
+    if (s==null) return;
+    played++; strokes+=s; par+=h.par; putts+=h.putts||0;
+    if (isGIR(h)) gir++;
+    const d = s-h.par;
+    if (d<=-2) eagle++; else if (d===-1) birdie++; else if (d===0) parN++; else if (d===1) bogey++; else dbl++;
+  });
+  const diff = played? strokes-par : null;
+  return { strokes, par, diff, putts, gir, played, fwHit, fwTotal, eagle, birdie, parN, bogey, dbl, pens,
+           complete: played===r.holes.length && played>0 };
+}
+let histFilter = { year:"all", month:"all", course:"all" };
+function scoredRounds(){
+  return state.rounds.map(r=>({r, s:roundStat(r)})).filter(x=>x.s.played>0);
+}
+function matchFilter(r){
+  const y = (r.date||"").slice(0,4), m = (r.date||"").slice(5,7);
+  if (histFilter.year !== "all" && y !== histFilter.year) return false;
+  if (histFilter.month !== "all" && m !== histFilter.month) return false;
+  if (histFilter.course !== "all" && (r.course||"未命名") !== histFilter.course) return false;
+  return true;
+}
+function applyHistFilter(){
+  histFilter = {
+    year: document.getElementById("hfYear").value,
+    month: document.getElementById("hfMonth").value,
+    course: document.getElementById("hfCourse").value
+  };
+  renderHistory();
+}
+function resetHistFilter(){
+  histFilter = { year:"all", month:"all", course:"all" };
+  renderHistory();
+}
+function fillHistOptions(all){
+  const years = [...new Set(all.map(x=>(x.r.date||"").slice(0,4)).filter(Boolean))].sort().reverse();
+  const months = [...new Set(all.map(x=>(x.r.date||"").slice(5,7)).filter(Boolean))].sort();
+  const courses = [...new Set(all.map(x=>x.r.course||"未命名"))].sort();
+  const ySel = document.getElementById("hfYear"), mSel = document.getElementById("hfMonth"), cSel = document.getElementById("hfCourse");
+  ySel.innerHTML = `<option value="all">全部年份</option>` + years.map(y=>`<option value="${y}">${y} 年</option>`).join("");
+  mSel.innerHTML = `<option value="all">全部月份</option>` + months.map(m=>`<option value="${m}">${parseInt(m,10)} 月</option>`).join("");
+  cSel.innerHTML = `<option value="all">全部球场</option>` + courses.map(c=>`<option value="${c}">${c}</option>`).join("");
+  ySel.value = histFilter.year; mSel.value = histFilter.month; cSel.value = histFilter.course;
+  if (ySel.value !== histFilter.year) { histFilter.year = "all"; ySel.value = "all"; }
+  if (mSel.value !== histFilter.month) { histFilter.month = "all"; mSel.value = "all"; }
+  if (cSel.value !== histFilter.course) { histFilter.course = "all"; cSel.value = "all"; }
+}
+function renderHistory(){
+  const all = scoredRounds();
+  fillHistOptions(all);
+  const rs = all.filter(x=>matchFilter(x.r));
+  const scopeParts = [];
+  if (histFilter.year !== "all") scopeParts.push(histFilter.year + " 年");
+  if (histFilter.month !== "all") scopeParts.push(parseInt(histFilter.month,10) + " 月");
+  if (histFilter.course !== "all") scopeParts.push(histFilter.course);
+  document.getElementById("histScope").innerHTML = scopeParts.length
+    ? `筛选：<b>${scopeParts.join(" · ")}</b> · 命中 ${rs.length} / ${all.length} 轮`
+    : `统计范围：<b>全部轮次</b>（共 ${all.length} 轮）`;
+  if (!rs.length){
+    document.getElementById("histGrid").innerHTML =
+      `<div class="tech-item full"><div class="label">${all.length?"当前筛选下没有成绩":"还没有成绩"}</div>
+       <div class="value">–</div><div class="sub">${all.length?"换个年份/月份/球场，或点「清除筛选」":"记录一场球后这里会自动汇总"}</div></div>`;
+    ["histPeriodTable","histCourseTable","histList"].forEach(id=>document.getElementById(id).innerHTML="");
+    document.getElementById("histTrend").innerHTML = "";
+    return;
+  }
+  const sum = (f)=> rs.reduce((a,x)=>a+f(x.s),0);
+  const n = rs.length;
+  const totStrokes = sum(s=>s.strokes), totPar = sum(s=>s.par), totDiff = totStrokes-totPar;
+  const holes = sum(s=>s.played);
+  const best = rs.reduce((a,b)=> (a.s.diff<=b.s.diff)? a : b);
+  const avgPutt = sum(s=>s.putts)/holes;
+  const girPct = Math.round(sum(s=>s.gir)/holes*100);
+  const fwT = sum(s=>s.fwTotal), fwH = sum(s=>s.fwHit);
+  const birdies = sum(s=>s.birdie), eagles = sum(s=>s.eagle);
+  const items = [
+    ["轮数 / 洞数", `${n} 轮`, `共 ${holes} 洞`],
+    ["平均总杆", (totStrokes/n).toFixed(1), `平均 Par ${(totPar/n).toFixed(1)}`],
+    ["平均高于标准杆", `${(totDiff/n>0?"+":"")}${(totDiff/n).toFixed(1)}`, "可作为水平参考（非差点）"],
+    ["最好一轮", `${best.s.strokes} 杆 ${best.s.diff>0?"+":""}${best.s.diff}`, `${best.r.course} · ${best.r.date}`],
+    ["平均推杆", avgPutt.toFixed(2), `${sum(s=>s.putts)} 推 / ${holes} 洞`],
+    ["GIR 率", girPct+"%", `${sum(s=>s.gir)} / ${holes} 洞`],
+    ["开球上球道率", fwT? Math.round(fwH/fwT*100)+"%" : "–", `${fwH} / ${fwT}`],
+    ["小鸟及以上", `${birdies+eagles} 次`, `老鹰 ${eagles} · 小鸟 ${birdies}`],
+    ["双柏忌及以上", `${sum(s=>s.dbl)} 次`, `柏忌 ${sum(s=>s.bogey)} 次`],
+    ["罚杆总数", `${sum(s=>s.pens)} 次`, `每轮 ${(sum(s=>s.pens)/n).toFixed(1)} 次`],
+  ];
+  document.getElementById("histGrid").innerHTML = items.map(([l,v,s])=>
+    `<div class="tech-item"><div class="label">${l}</div><div class="value">${v}</div><div class="sub">${s}</div></div>`).join("");
+
+  // 按时间汇总：选了年份 → 按月；否则 → 按年
+  const byMonth = histFilter.year !== "all";
+  const periodKey = x => byMonth ? (x.r.date||"").slice(5,7) : (x.r.date||"").slice(0,4);
+  const periodName = k => byMonth ? `${parseInt(k,10)} 月` : `${k} 年`;
+  const byPeriod = {};
+  rs.forEach(({r,s})=>{
+    const k = periodKey({r}) || "未标注日期";
+    if (!byPeriod[k]) byPeriod[k] = {n:0, best:null, tot:0, diff:0, putts:0, holes:0};
+    const p = byPeriod[k];
+    p.n++; p.tot += s.strokes; p.diff += s.diff; p.putts += s.putts; p.holes += s.played;
+    if (p.best==null || s.diff < p.best) p.best = s.diff;
+  });
+  document.getElementById("histPeriodLabel").textContent = byMonth ? "按月汇总" : "按年汇总";
+  document.getElementById("histPeriodTable").innerHTML =
+    `<thead><tr><th>${byMonth?"月份":"年份"}</th><th>轮数</th><th>平均杆</th><th>平均±</th><th>平均推杆</th><th>最好</th></tr></thead><tbody>` +
+    Object.entries(byPeriod).sort((a,b)=>a[0].localeCompare(b[0])).map(([k,v])=>
+      `<tr><td><b>${periodName(k)}</b></td><td>${v.n}</td><td>${(v.tot/v.n).toFixed(1)}</td>
+       <td class="${v.diff/v.n>0?'diff bad':''}">${v.diff/v.n>0?"+":""}${(v.diff/v.n).toFixed(1)}</td>
+       <td>${(v.putts/v.holes).toFixed(1)}</td>
+       <td>${v.best>0?"+":""}${v.best}</td></tr>`).join("") + `</tbody>`;
+
+  // 各球场
+  const byCourse = {};
+  rs.forEach(({r,s})=>{
+    const k = r.course || "未命名";
+    if (!byCourse[k]) byCourse[k] = {n:0, best:null, tot:0, diff:0};
+    byCourse[k].n++; byCourse[k].tot += s.strokes; byCourse[k].diff += s.diff;
+    if (byCourse[k].best==null || s.diff < byCourse[k].best) byCourse[k].best = s.diff;
+  });
+  document.getElementById("histCourseTable").innerHTML =
+    `<thead><tr><th>球场</th><th>轮数</th><th>平均杆</th><th>平均±</th><th>最好</th></tr></thead><tbody>` +
+    Object.entries(byCourse).sort((a,b)=>b[1].n-a[1].n).map(([k,v])=>
+      `<tr><td style="text-align:left"><b>${k}</b></td><td>${v.n}</td><td>${(v.tot/v.n).toFixed(1)}</td>
+       <td class="${v.diff/v.n>0?'diff bad':''}">${v.diff/v.n>0?"+":""}${(v.diff/v.n).toFixed(1)}</td>
+       <td>${v.best>0?"+":""}${v.best}</td></tr>`).join("") + `</tbody>`;
+
+  // 轮次明细 + 趋势条（按日期正序画，列表按倒序显示）
+  const asc = rs.slice().sort((a,b)=> String(a.r.date).localeCompare(String(b.r.date)) || 0);
+  const recent = asc.slice(-12);
+  const maxAbs = Math.max(1, ...recent.map(x=>Math.abs(x.s.diff)));
+  document.getElementById("histTrend").innerHTML =
+    `<div style="display:flex;align-items:flex-end;gap:4px;height:64px;margin:4px 0 6px">` +
+    recent.map(x=>{
+      const h = Math.max(4, Math.round(Math.abs(x.s.diff)/maxAbs*50));
+      const good = x.s.diff<=0;
+      return `<div title="${x.r.date} ${x.r.course} ${x.s.strokes}杆 ${x.s.diff>0?'+':''}${x.s.diff}"
+        style="flex:1;height:${h}px;background:${good?'var(--good)':'var(--accent)'};border-radius:3px 3px 0 0;opacity:.85"></div>`;
+    }).join("") + `</div>
+    <div class="hint" style="margin-bottom:8px">绿色 = 平/低于标准杆，橙色 = 高于标准杆（最近 ${recent.length} 轮）</div>`;
+  document.getElementById("histList").innerHTML =
+    `<thead><tr><th>日期</th><th>球场</th><th>杆数</th><th>±</th><th>推杆</th><th>GIR</th></tr></thead><tbody>` +
+    asc.slice().reverse().map(x=>
+      `<tr style="cursor:pointer" onclick="gotoRound('${x.r.id}')">
+        <td>${x.r.date||"–"}</td>
+        <td style="text-align:left">${x.r.course}</td>
+        <td><b>${x.s.strokes}</b></td>
+        <td class="${x.s.diff>0?'diff bad':(x.s.diff<0?'diff good':'')}">${x.s.diff>0?"+":""}${x.s.diff}</td>
+        <td>${x.s.putts}</td><td>${x.s.gir}</td></tr>`).join("") + `</tbody>`;
+}
+function gotoRound(id){
+  state.currentId = id; render();
+  window.scrollTo({top:0, behavior:"smooth"});
+}
+
+/* ============ 云同步（Supabase，可选） ============ */
+const CFG_KEY = "golf-cloud-config";
+const SETUP_SQL =
+`-- 在 Supabase SQL Editor 里执行一次
+create table if not exists golf_data (
+  user_id uuid primary key references auth.users on delete cascade,
+  data jsonb not null,
+  updated_at timestamptz not null default now()
+);
+alter table golf_data enable row level security;
+drop policy if exists "own row" on golf_data;
+create policy "own row" on golf_data
+  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+grant usage on schema public to anon, authenticated;
+grant select, insert, update, delete on public.golf_data to anon, authenticated;`;
+
+let sb = null, sbUser = null, pushTimer = null, suppressPush = false;
+function cloudCfg(){
+  try { return JSON.parse(localStorage.getItem(CFG_KEY)) || {url:"", key:""}; } catch(e){ return {url:"", key:""}; }
+}
+function saveCloudCfg(cfg){ localStorage.setItem(CFG_KEY, JSON.stringify(cfg)); }
+function cleanVal(v){
+  v = (v||"").trim().replace(/^["']|["']$/g, "");
+  // 允许把整行 NEXT_PUBLIC_SUPABASE_URL=xxx 直接粘进来，自动只取等号后面的值
+  if (/SUPABASE/i.test(v)){
+    const m = v.match(/=(.+)$/);
+    if (m) return m[1].trim();
+  }
+  return v;
+}
+function readCloudInputs(){
+  return { url: cleanVal(document.getElementById("sbUrl").value), key: cleanVal(document.getElementById("sbKey").value) };
+}
+function setCloudStatus(txt){ const el=document.getElementById("cloudStatus"); if(el) el.innerHTML = txt; }
+function cloudErrHint(e){
+  const m = (e && (e.message || e.error_description || e.hint || String(e))) || "未知错误";
+  if (/row-level security|permission denied|42501|not authorized|policy/i.test(m))
+    return m + " ｜ 多半是建表 SQL 没跑全：请在 Supabase SQL Editor 执行卡片里那段 SQL（含最后两行 grant），并确认两端登录同一账号";
+  if (/Invalid API key|JWT|apikey/i.test(m)) return m + " ｜ key 不对，请复制 anon/publishable key（不是 service_role）";
+  if (/Failed to fetch|network|Load failed/i.test(m)) return m + " ｜ 网络或 URL 不对（URL 要以 https:// 开头）";
+  return m;
+}
+async function cloudSelfCheck(){
+  const cfg = cloudCfg();
+  let out = `<b>自检结果</b><br>`;
+  out += `· Project URL：<code>${cfg.url || "（未填）"}</code><br>`;
+  out += `· Key 长度：${cfg.key ? cfg.key.length : 0}${cfg.key ? "（前 8 位 " + cfg.key.slice(0,8) + "…）" : ""}<br>`;
+  const c = await sbClient();
+  if (!c){ setCloudStatus(out + "· 客户端创建失败（URL/key 有问题）"); return; }
+  const { data: sess } = await c.auth.getSession();
+  const u = sess && sess.session ? sess.session.user : null;
+  if (!u){
+    setCloudStatus(out + `· <b style="color:var(--bad)">未登录</b>（没有有效会话）→ 点「登录」<br>· 说明：未登录时读写会被 RLS 拒绝，属正常保护`);
+    return;
+  }
+  sbUser = u;
+  out += `· 已登录：<b>${u.email}</b><br>· 用户 id：<code>${u.id.slice(0,8)}…</code><br>`;
+  const sel = await c.from("golf_data").select("updated_at").eq("user_id", u.id).maybeSingle();
+  if (sel.error){
+    setCloudStatus(out + `· <b style="color:var(--bad)">读取失败</b>：${cloudErrHint(sel.error)}`);
+    return;
+  }
+  if (!sel.data){
+    setCloudStatus(out + `· 云端<b>该账号下没有数据</b><br>· 如果电脑已上传，说明电脑登录的是<b>另一个账号</b>——请确认两端邮箱完全一致`);
+    return;
+  }
+  setCloudStatus(out + `· 云端数据：<b>${new Date(sel.data.updated_at).toLocaleString("zh-CN")}</b><br>· 正常，点「⬇️ 立即拉取」即可`);
+}
+async function sbClient(){
+  const cfg = cloudCfg();
+  if (!cfg.url || !cfg.key){ toast("请先填 Project URL 和 anon key"); return null; }
+  if (sb) return sb;
+  try {
+    const mod = await import("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm");
+    sb = mod.createClient(cfg.url.trim(), cfg.key.trim());
+    return sb;
+  } catch(e){ toast("无法加载 Supabase SDK（检查网络）"); return null; }
+}
+/* 该轮次是否已被删除（有墓碑，且删除后没有再产生更新的编辑） */
+function isDeleted(id, updatedAt){
+  const at = state.deleted && state.deleted[id];
+  if (!at) return false;
+  return !(updatedAt && updatedAt > at);
+}
+function mergeRemote(data){
+  // 按 id 合并；同一轮次做逐洞合并，解决「电脑记前9 + 手机记后9」双端分工
+  let added = 0, merged = 0, removed = 0;
+  (data.courses||[]).forEach(c=>{ if(!state.courses.some(x=>x.id===c.id)) state.courses.push(c); });
+  (data.combos||[]).forEach(c=>{ if(!state.combos.some(x=>x.id===c.id)) state.combos.push(c); });
+  // 先应用远端墓碑：删掉本地还在、但另一端已删除的轮次（保留最后一轮不删空）
+  if (data.deleted){
+    Object.entries(data.deleted).forEach(([id, at])=>{
+      state.deleted[id] = (state.deleted[id] && state.deleted[id] > at) ? state.deleted[id] : at;
+      const local = state.rounds.find(x=>x.id===id);
+      if (local && !((local.updatedAt||"") > at) && state.rounds.length > 1){
+        state.rounds = state.rounds.filter(x=>x.id!==id);
+        removed++;
+      }
+    });
+    if (!state.rounds.some(x=>x.id===state.currentId)) state.currentId = state.rounds[0] ? state.rounds[0].id : "";
+  }
+  (data.rounds||[]).forEach(r=>{
+    if (!r.holes || !Array.isArray(r.holes)) return;
+    if (isDeleted(r.id, r.updatedAt)) return;   // 已删除的不再复活
+    const local = state.rounds.find(x=>x.id===r.id);
+    if (!local){ state.rounds.push(r); added++; return; }
+    mergeRound(local, r); merged++;
+  });
+  return { added, merged, removed };
+}
+/* 同一轮次逐洞合并：哪一端有成绩取哪一端；两端都有则取 updatedAt 较新的一端 */
+function mergeRound(local, remote){
+  const remoteNewer = (remote.updatedAt||"") > (local.updatedAt||"");
+  const n = remoteNewer ? remote.holes.length : local.holes.length;
+  const holes = [];
+  for (let i=0;i<n;i++){
+    const a = local.holes[i], b = remote.holes[i];
+    if (!a){ holes.push(b); continue; }
+    if (!b){ holes.push(a); continue; }
+    const aHas = a.manualStrokes!=null || (a.shots && a.shots.length>0);
+    const bHas = b.manualStrokes!=null || (b.shots && b.shots.length>0);
+    if (aHas && !bHas){ holes.push(a); continue; }
+    if (!aHas && bHas){ holes.push(b); continue; }
+    holes.push(remoteNewer ? b : a);
+  }
+  local.holes = holes;
+  if (remoteNewer){
+    local.course = remote.course ?? local.course;
+    local.date = remote.date ?? local.date;
+    if (remote.tags) local.tags = remote.tags;
+    local.updatedAt = remote.updatedAt;
+  }
+}
+async function sbSession(){
+  const c = await sbClient(); if(!c) return null;
+  const { data } = await c.auth.getUser();
+  sbUser = data && data.user ? data.user : null;
+  if (sbUser) setCloudStatus(`已登录 <b>${sbUser.email}</b>`);
+  return sbUser;
+}
+async function cloudPull(silent){
+  const c = await sbClient(); if(!c) return;
+  const u = await sbSession(); if(!u){ toast("请先登录"); return; }
+  try {
+    const { data, error } = await c.from("golf_data").select("data,updated_at").eq("user_id", u.id).maybeSingle();
+    if (error) throw error;
+    if (!data || !data.data){
+      if(!silent) toast("云端该账号下还没有数据（若电脑已上传，请确认两端登录同一账号）");
+      setCloudStatus(`已登录 <b>${u.email}</b> · 云端暂无数据`);
+      return;
+    }
+    suppressPush = true;
+    const { added, merged, removed } = mergeRemote(data.data);
+    render();
+    const t = new Date(data.updated_at).toLocaleString("zh-CN");
+    const parts = [];
+    if (added) parts.push(`新增 ${added} 轮`);
+    if (merged) parts.push(`合并 ${merged} 轮`);
+    if (removed) parts.push(`移除 ${removed} 轮`);
+    toast(`已拉取：${parts.length? parts.join(" · ") + " · " : ""}云端更新于 ${t}`);
+    setCloudStatus(`已登录 <b>${u.email}</b> · 云端更新于 ${t}`);
+    suppressPush = false;
+    if (added || merged || removed) cloudPush();   // 把并集回传云端，避免另一端拉到旧数据后再覆盖回来
+  } catch(e){
+    suppressPush = false;
+    toast("拉取失败：" + cloudErrHint(e));
+  }
+}
+async function cloudPush(){
+  const c = await sbClient(); if(!c) return;
+  const u = await sbSession(); if(!u){ toast("请先登录"); return; }
+  try {
+    const payload = { ...buildBackup(), updatedAt: new Date().toISOString() };
+    const { error } = await c.from("golf_data").upsert({ user_id: u.id, data: payload, updated_at: payload.updatedAt });
+    if (error) throw error;
+    toast("已上传到云端 ⬆️");
+    setCloudStatus(`已登录 <b>${u.email}</b> · 已同步 ${new Date().toLocaleTimeString("zh-CN")}`);
+  } catch(e){ toast("上传失败：" + cloudErrHint(e)); }
+}
+function scheduleSync(){
+  if (suppressPush || !sbUser || !cloudCfg().url) return;
+  clearTimeout(pushTimer);
+  pushTimer = setTimeout(cloudPush, 3000);
+}
+document.getElementById("sbSql").value = SETUP_SQL;
+(function initCloud(){
+  const cfg = cloudCfg();
+  document.getElementById("sbUrl").value = cfg.url || "";
+  document.getElementById("sbKey").value = cfg.key || "";
+  if (cfg.url && cfg.key){
+    setCloudStatus("已配置，点「登录」开始同步…");
+    sbClient().then(()=>sbSession()).then(u=>{ if(u) cloudPull(true); });
+  }
+})();
+document.getElementById("sbSave").onclick = ()=>{
+  const cfg = readCloudInputs();
+  if (!cfg.url || !cfg.key){ toast("URL 和 key 都要填（只需等号后面的部分）"); return; }
+  saveCloudCfg(cfg);
+  sb = null; sbUser = null;
+  setCloudStatus("配置已保存，点「注册」或「登录」");
+  toast("配置已保存到本机");
+};
+const sbAuth = async (mode)=>{
+  const inputs = readCloudInputs();
+  if (!inputs.url || !inputs.key){ toast("请先填 Project URL 和 key（粘等号后面的部分）"); return; }
+  saveCloudCfg(inputs); sb = null;   // 注册/登录前自动保存配置，不用单独点保存
+  const c = await sbClient(); if(!c) return;
+  const email = document.getElementById("sbEmail").value.trim();
+  const pass = document.getElementById("sbPass").value;
+  if (!email || !pass){ toast("请填邮箱和密码"); return; }
+  try {
+    const r = mode==="up" ? await c.auth.signUp({email, password:pass}) : await c.auth.signInWithPassword({email, password:pass});
+    if (r.error) throw r.error;
+    sbUser = r.data.user || null;
+    if (!sbUser){ toast("注册成功，若开启了邮箱验证请先去邮箱确认再登录"); return; }
+    setCloudStatus(`已登录 <b>${sbUser.email}</b>`);
+    await cloudPull(true);
+    await cloudPush();
+  } catch(e){ toast((mode==="up"?"注册":"登录") + "失败：" + (e.message||e)); }
+};
+document.getElementById("sbSignUp").onclick = ()=> sbAuth("up");
+document.getElementById("sbSignIn").onclick = ()=> sbAuth("in");
+document.getElementById("sbSignOut").onclick = async ()=>{
+  const c = await sbClient(); if(!c) return;
+  await c.auth.signOut(); sbUser = null; sb = null;
+  setCloudStatus("已登出（数据仍在本机）");
+};
+document.getElementById("sbPush").onclick = cloudPush;
+document.getElementById("sbPull").onclick = ()=> cloudPull(false);
+document.getElementById("sbCheck").onclick = cloudSelfCheck;
+
+function save(){
+  localStorage.setItem(LS_KEY, JSON.stringify(state));
+  scheduleSync();
+}
+function cur(){ return state.rounds.find(r=>r.id===state.currentId) || state.rounds[0]; }
+
+/* ============ 计算 ============ */
+function strokesOf(h){
+  if (h.manualStrokes != null) return h.manualStrokes;  // 手动填写的总杆优先
+  return h.shots.length ? h.shots.length : null;        // 未填时按逐杆条数自动算（含罚杆）
+}
+function girOf(h){ // 上果岭杆数
+  const s = strokesOf(h);
+  if (s==null || h.putts==null) return null;
+  return s - h.putts;
+}
+function isGIR(h){ const g = girOf(h); return g!=null && g <= h.par-2; }
+function penaltiesOf(h){ return h.shots.filter(s=>s.result==="penalty").length; }
+function diffOf(h){
+  const s = strokesOf(h); if (s==null) return null;
+  return s - h.par;
+}
+function diffEmoji(d){
+  if (d==null) return "";
+  if (d<=-2) return "🦅"; if (d===-1) return "🐦";
+  if (d===0) return "✅"; if (d===1) return "🐓"; return "🔥";
+}
+function diffClass(d){ if(d==null)return""; return d<0?"good":(d>0?"bad":""); }
+
+/* ============ 渲染：记分卡 ============ */
+function render(){
+  const r = cur();
+  document.getElementById("courseName").value = r.course;
+  document.getElementById("roundDate").value = r.date;
+  renderRoundSel();
+  renderSummaryBar(r);
+  renderChips(r);
+  renderTable(r);
+  renderClubStats(r);
+  renderTech(r);
+  renderHistory();
+  save();
+}
+
+function renderRoundSel(){
+  const sel = document.getElementById("roundSel");
+  sel.innerHTML = state.rounds.map((r,i)=>`<option value="${r.id}">${r.course}（${(r.date||"").slice(5)}）</option>`).join("");
+  sel.value = cur().id;
+}
+
+function renderChips(r){
+  const n = r.holes.length;
+  let strokes=0, pars=0, girCnt=0, putts=0, puttsKnown=0, fwHit=0, fwTotal=0, pens=0;
+  let eagles=0,birdies=0,parsN=0,bogeys=0,doubles=0, played=0;
+  r.holes.forEach(h=>{
+    const s = strokesOf(h);
+    if (s!=null){
+      played++; strokes+=s; pars+=h.par;
+      const d=s-h.par;
+      if(d<=-2)eagles++; else if(d===-1)birdies++; else if(d===0)parsN++; else if(d===1)bogeys++; else if(d===2)doubles++; else doubles++;
+      if (h.putts!=null){ putts+=h.putts; puttsKnown++; }
+      if (isGIR(h)) girCnt++;
+    }
+    if (h.par>=4){ fwTotal++; if(h.fairway==="hit") fwHit++; }
+    pens += penaltiesOf(h);
+  });
+  const rel = played? strokes-pars : 0;
+  const relTxt = rel>0? "+"+rel : rel;
+  document.getElementById("chips").innerHTML = `
+    ${eagles?`<span class="chip">🦅 ${eagles}</span>`:""}
+    <span class="chip plain">🐦 ${birdies}</span>
+    <span class="chip plain">✅ ${parsN}</span>
+    <span class="chip plain">🐓 ${bogeys}</span>
+    <span class="chip plain">🔥 ${doubles}</span>
+    <span class="chip plain">推杆 ${putts}</span>
+    <span class="chip plain">球道 ${fwHit}/${fwTotal}</span>
+    ${pens?`<span class="chip warn">✗ 罚杆 ${pens}</span>`:""}
+    ${played<n?`<span class="chip">已打 ${played}/${n} 洞</span>`:""}`;
+}
+
+function shotStr(h){
+  if (!h.shots.length) return "";
+  let t = h.shots.map(s=>{
+    const c = s.club==="罚杆" ? "罚" : s.club;
+    return c + MARK[s.result];
+  }).join(" ");
+  return t;
+}
+
+function renderTable(r){
+  let html = "", totS=0, totP=0, totPar=0, totY=0, totGir=0;
+  const rowFn = (h,i,key)=>{
+    const s = strokesOf(h), g = girOf(h), d = diffOf(h);
+    const played = s!=null;
+    if (played){ totS+=s; totP+=h.putts||0; totPar+=h.par; if(isGIR(h)) totGir++; }
+    totY += h.yards;
+    const fw = h.par>=4 && h.fairway ? `<span style="color:${h.fairway==='hit'?'var(--good)':'var(--muted)'}">球道${FW_LABEL[h.fairway]}</span>` : "";
+    return `<tr class="hole-row ${played?'done':'todo'}" onclick="openModal(${i})">
+      <td class="hole-no">${i+1}${key||""}${(r.tags&&r.tags[i])?`<span class="hole-tag" title="${r.tags[i]}">${r.tags[i]}</span>`:""}</td>
+      <td class="par-cell" onclick="openModal(${i})" title="点击修改本洞 Par / 码数">${h.par} <span class="yard">(${h.yards}y)</span></td>
+      <td class="gir-cell ${isGIR(h)?'gir-yes':''}">${g!=null? g+"上" : "–"}${isGIR(h)?' <span class="gir-mark">GIR</span>':''}</td>
+      <td>${h.putts!=null? h.putts : "–"}</td>
+      <td class="strokes">${s!=null? s : "–"}</td>
+      <td class="diff ${diffClass(d)}">${d==null? "" : (d===0?"":(d>0?"+"+d:d))+" "+diffEmoji(d)}</td>
+      <td class="shots">${fw? fw+" · ":""}${shotStr(h)||""}</td>
+      <td><button class="edit-btn" onclick="openModal(${i})">✏️</button></td>
+    </tr>`;
+  };
+  const n = r.holes.length;
+  r.holes.forEach((h,i)=> html+=rowFn(h,i,""));
+  const subtotal = (from,to,tag,id1,id2,id3)=>{
+    const seg = r.holes.slice(from,to);
+    if (!seg.length) return "";
+    return `<tr class="total-row"><td>${tag}</td><td>${seg.reduce((a,h)=>a+h.par,0)} <span class="yard">(${seg.reduce((a,h)=>a+h.yards,0)}y)</span></td><td></td><td id="${id1}"></td><td id="${id2}"></td><td id="${id3}"></td><td></td><td></td></tr>`;
+  };
+  if (n>=9) html += subtotal(0,9,"前9","tP1","tS1","tD1");
+  if (n>9)  html += subtotal(9,n,"后9","tP2","tS2","tD2");
+  const tier = totalTier(totS, totPar);
+  html += `<tr class="total-row"><td>${n}洞</td><td>${r.holes.reduce((a,h)=>a+h.par,0)} <span class="yard">(${totY}y)</span></td>
+    <td>${totGir}上</td><td>${totP}</td><td class="${tier?'tier-'+tier:''}">${totS}</td>
+    <td class="diff ${totS-totPar>0?'bad':(totS-totPar<0?'good':'')}">${totS? (totS-totPar>0?"+"+(totS-totPar):totS-totPar):""}</td>
+    <td></td><td></td></tr>`;
+  document.getElementById("scoreBody").innerHTML = html;
+  // 前后9小计
+  const calc = (from,to)=>{
+    let s=0,p=0,par=0,ok=false;
+    r.holes.slice(from,to).forEach(h=>{ const x=strokesOf(h); if(x!=null){s+=x;p+=h.putts||0;par+=h.par;ok=true;} });
+    return ok? {s,p,d:s-par} : null;
+  };
+  const f=calc(0,9), b=calc(9,n);
+  const set=(id,v)=>{ const el=document.getElementById(id); if(el) el.textContent=v; };
+  set("tS1", f? f.s : "–"); set("tP1", f? f.p : "–"); set("tD1", f? (f.d>0?"+"+f.d:f.d) : "");
+  set("tS2", b? b.s : "–"); set("tP2", b? b.p : "–"); set("tD2", b? (b.d>0?"+"+b.d:b.d) : "");
+}
+
+/* ============ 球杆统计 ============ */
+function renderClubStats(r){
+  const m = {};
+  let total=0, good=0;
+  r.holes.forEach(h=>h.shots.forEach(s=>{
+    if (!m[s.club]) m[s.club]={n:0,good:0,left:0,right:0,thin:0,fat:0,shank:0,pen:0};
+    const o=m[s.club]; o.n++; total++;
+    if (s.result==="good"||s.result==="holed"){o.good++;good++;}
+    else if(s.result==="left")o.left++;
+    else if(s.result==="right")o.right++;
+    else if(s.result==="thin")o.thin++;
+    else if(s.result==="fat")o.fat++;
+    else if(s.result==="shank")o.shank++;
+    else if(s.result==="penalty")o.pen++;
+  }));
+  const keys = Object.keys(m).sort((a,b)=>CLUBS.indexOf(a)-CLUBS.indexOf(b));
+  const pc = (a,b)=> b? Math.round(a/b*100)+"%" : "0%";
+  document.getElementById("clubBody").innerHTML = keys.map(k=>{
+    const o=m[k];
+    return `<tr><td><b>${k}</b></td><td>${o.n}</td>
+      <td class="pct-good">${pc(o.good,o.n)}</td>
+      <td class="pct-left">${pc(o.left,o.n)}</td>
+      <td class="pct-right">${pc(o.right,o.n)}</td>
+      <td class="pct-thin">${pc(o.thin,o.n)}</td>
+      <td class="pct-fat">${pc(o.fat,o.n)}</td>
+      <td class="m-shank">${pc(o.shank,o.n)}</td>
+      <td class="m-penalty">${pc(o.pen,o.n)}</td></tr>`;
+  }).join("") || `<tr><td colspan="9" style="color:var(--muted)">暂无逐杆数据，点击每行的 ✏️ 开始逐杆记录</td></tr>`;
+  document.getElementById("clubFooter").textContent = keys.length? `总杆 ${total} 杆 · 好杆率 ${pc(good,total)}` : "";
+}
+
+/* ============ 技术统计 ============ */
+function renderTech(r){
+  let strokes=0,par=0,putts=0,girCnt=0,played=0,girRounds=0,fwHit=0,fwTotal=0;
+  let scram=0,scramN=0,sandSave=0,sandN=0,pens=0,bunkers=0;
+  const parTypes={3:{n:0,s:0},4:{n:0,s:0},5:{n:0,s:0}};
+  let birdiePlus=0, dblAvoid=0;
+  r.holes.forEach(h=>{
+    const s=strokesOf(h);
+    if (h.shots.length===0 && h.manualStrokes==null) return;
+    // 罚杆与沙坑
+    pens += penaltiesOf(h); bunkers += h.bunkers||0;
+    if (s==null) return;
+    played++; strokes+=s; par+=h.par; putts+=h.putts||0;
+    const gir=isGIR(h); if(h.putts!=null){girRounds++; if(gir)girCnt++;}
+    if (h.par>=4){ fwTotal++; if(h.fairway==="hit")fwHit++; }
+    const d=s-h.par;
+    if (d<=-1) birdiePlus++;
+    if (d<2) dblAvoid++;
+    // 救球率只在能判定 GIR 时统计（缺推杆时 isGIR 恒为 false，会把未填推杆的洞误算成「未上果岭」）
+    if (h.putts!=null){ if (!gir && d<=0) scram++; if(!gir) scramN++; }
+    if ((h.bunkers||0)>0){ sandN++; if(d<=0) sandSave++; }
+    if (parTypes[h.par]) { parTypes[h.par].n++; parTypes[h.par].s+=s; }
+  });
+  const p2=(v)=> played? v.toFixed(2) : "–";
+  const items = [
+    ["总杆 / 相对标准杆", played? `${strokes}（${strokes-par>0?"+":""}${strokes-par}）` : "–", `已完成 ${played}/${r.holes.length} 洞`],
+    ["开球上球道率", fwTotal? Math.round(fwHit/fwTotal*100)+"%" : "–", `${fwHit}/${fwTotal}（Par4/5）`],
+    ["GIR 标准杆上果岭", girRounds? Math.round(girCnt/girRounds*100)+"%" : "–", `${girCnt}/${girRounds} 洞（需填推杆才可判定）`],
+    ["推杆总数", played? putts+" 推" : "–", `场均 ${p2(played?putts/played:0)} 推/洞`],
+    ["GIR 后平均推杆", girCnt? p2(r.holes.filter(isGIR).reduce((a,h)=>a+(h.putts||0),0)/girCnt) : "–", "衡量上果岭后一推能力"],
+    ["救球率 Scrambling", scramN? Math.round(scram/scramN*100)+"%" : "–", `${scram}/${scramN}（未上果岭仍保帕）`],
+    ["沙坑救球率", sandN? Math.round(sandSave/sandN*100)+"%" : "–", `进沙坑 ${sandN} 洞，救回 ${sandSave} 洞`],
+    ["罚杆总数", pens+" 次", bunkers? `另进沙坑 ${bunkers} 次` : "尽量避开下水与 OB"],
+    ["平均杆（Par3/4/5）", [3,4,5].map(p=>parTypes[p].n? p2(parTypes[p].s/parTypes[p].n):"–").join(" / "), "Par3 / Par4 / Par5"],
+    ["小鸟及以上", birdiePlus+" 次", `双柏忌避免率 ${played?Math.round(dblAvoid/played*100):0}%`],
+  ];
+  document.getElementById("techGrid").innerHTML = items.map(([l,v,s])=>
+    `<div class="tech-item"><div class="label">${l}</div><div class="value">${v}</div><div class="sub">${s}</div></div>`).join("");
+}
+
+/* ============ 交互辅助 ============ */
+function stepVal(id, delta){
+  const el = document.getElementById(id);
+  const cur = el.value === "" ? (id==="fPutts" ? 0 : 2) : parseInt(el.value,10);
+  let v = cur + delta;
+  if (id==="fStrokes") v = Math.max(1, Math.min(15, v));
+  if (id==="fPutts") v = Math.max(0, Math.min(10, v));
+  el.value = v;
+  if (id==="fPutts" && v > (parseInt(document.getElementById("fStrokes").value,10)||0)) {
+    // 推杆不该超过总杆，自动把总杆抬上去
+    document.getElementById("fStrokes").value = v;
+  }
+  syncQuick(); writeHole();
+}
+function setQuick(id, v){
+  document.getElementById(id).value = v;
+  syncQuick(); writeHole();
+}
+function syncQuick(){
+  const sEl = document.getElementById("fStrokes");
+  const autoS = (sEl.placeholder.match(/\d+/) || [])[0];       // 未填总杆时的逐杆自动值
+  const s = sEl.value !== "" ? sEl.value : (autoS || "");
+  const p = document.getElementById("fPutts").value;
+  const b = document.getElementById("fBunkers").value;
+  document.querySelectorAll("#qStrokes button").forEach(btn=>btn.classList.toggle("on", btn.textContent===s));
+  document.querySelectorAll("#qPutts button").forEach(btn=>btn.classList.toggle("on", btn.textContent===p));
+  document.querySelectorAll("#qBunkers button").forEach(btn=>btn.classList.toggle("on", btn.textContent===b));
+  // 上果岭杆数实时预览
+  const info = document.getElementById("mInfo");
+  if (info && s !== "" && p !== ""){
+    const par = parseInt(document.getElementById("fPar").value,10);
+    const toGreen = parseInt(s,10) - parseInt(p,10);
+    const gir = toGreen <= par - 2;
+    info.innerHTML = `Par ${par} · ${document.getElementById("fYards").value} 码 · 上果岭 <b>${toGreen}</b> 杆 ` +
+      (gir ? `<span style="color:var(--good)">✓ GIR</span>` : `<span style="color:var(--muted)">未标准杆上果岭</span>`);
+  }
+}
+function buildQuick(){
+  const qs = document.getElementById("qStrokes");
+  qs.innerHTML = [2,3,4,5,6,7,8].map(v=>`<button onclick="setQuick('fStrokes',${v})">${v}</button>`).join("");
+  const qp = document.getElementById("qPutts");
+  qp.innerHTML = [0,1,2,3,4].map(v=>`<button onclick="setQuick('fPutts',${v})">${v}</button>`).join("");
+  const qb = document.getElementById("qBunkers");
+  qb.innerHTML = [0,1,2,3].map(v=>`<button onclick="setQuick('fBunkers',${v})">${v}</button>`).join("");
+}
+function jumpNextHole(){
+  const r = cur();
+  let idx = r.holes.findIndex(h=>strokesOf(h)==null);
+  if (idx < 0) idx = 0;
+  openModal(idx);
+}
+function saveAndNext(){
+  const n = cur().holes.length;
+  const i = editIdx;
+  saveHole();
+  if (i + 1 < n){ openModal(i+1); toast(`已保存第 ${i+1} 洞`); }
+  else { toast("全部 18 洞已记录 ⛳"); }
+}
+function renderSummaryBar(r){
+  const el = document.getElementById("sumBar");
+  if (!el) return;
+  let strokes=0, par=0, putts=0, gir=0, played=0;
+  r.holes.forEach(h=>{
+    const s = strokesOf(h); if (s==null) return;
+    played++; strokes+=s; par+=h.par; putts+=h.putts||0; if (isGIR(h)) gir++;
+  });
+  const n = r.holes.length, diff = strokes-par;
+  const pct = Math.round(played/n*100);
+  const tier = played? totalTier(strokes, par) : "";
+  el.innerHTML = `
+    <div class="row1">
+      <span class="big">${played? strokes : "–"}</span>
+      <span class="rel ${diff>0?'diff bad':(diff<0?'diff good':'')}">${played? (diff>0?"+":"")+diff : ""}</span>
+      ${tier?`<span class="tierbadge ${tier}">${TIER_LABEL[tier]}</span>`:""}
+      <span class="meta">
+        <span>推杆<b>${putts}</b></span>
+        <span>GIR<b>${gir}</b></span>
+        <span>进度<b>${played}/${n}</b></span>
+      </span>
+    </div>
+    <div class="progress"><i style="width:${pct}%"></i></div>`;
+  const tail = document.getElementById("cardTail");
+  if (tail) tail.textContent = played===n ? "已完成" : `还剩 ${n-played} 洞`;
+  const fab = document.getElementById("fab");
+  if (fab) fab.textContent = played===n ? "⛳ 查看第 1 洞" : `⛳ 记第 ${r.holes.findIndex(h=>strokesOf(h)==null)+1} 洞`;
+}
+
+/* ============ 弹窗 ============ */
+let editIdx = -1;
+function openModal(i){
+  editIdx = i;
+  const r = cur(), h = r.holes[i];
+  document.getElementById("mTitle").textContent = `第 ${i+1} 洞`;
+  document.getElementById("mInfo").textContent = `Par ${h.par} · ${h.yards} 码 · ${h.par===3?"三杆洞":h.par===4?"四杆洞":"五杆洞"}`;
+  document.getElementById("fPar").value = h.par;
+  document.getElementById("fYards").value = h.yards;
+  const fsEl = document.getElementById("fStrokes");
+  fsEl.value = h.manualStrokes ?? "";
+  fsEl.placeholder = h.shots.length ? "自动:" + h.shots.length : "";
+  document.getElementById("fPutts").value = h.putts ?? "";
+  document.getElementById("fBunkers").value = h.bunkers || 0;
+  document.getElementById("fPar").value = h.par;
+  document.getElementById("fYards").value = h.yards;
+  document.getElementById("fBunkers").value = h.bunkers || 0;
+  buildQuick(); syncQuick();
+  const fr = document.getElementById("fairwayRow");
+  fr.style.display = h.par>=4 ? "" : "none";
+  renderFairwaySeg(h.fairway);
+  const sc = document.getElementById("shotClub");
+  sc.innerHTML = CLUBS.filter(c=>c!=="罚杆").map(c=>`<option value="${c}">${c}</option>`).join("");
+  renderShots(h);
+  document.getElementById("overlay").classList.add("show");
+}
+function renderFairwaySeg(v){
+  document.querySelectorAll("#fairwaySeg button").forEach(b=>{
+    b.classList.toggle("on", b.dataset.v===v);
+  });
+}
+document.getElementById("fairwaySeg").addEventListener("click", e=>{
+  if (e.target.dataset.v){ renderFairwaySeg(e.target.dataset.v); writeHole(); }
+});
+function renderShots(h){
+  const ul = document.getElementById("shotList");
+  ul.innerHTML = h.shots.map((s,idx)=>
+    `<li><span class="idx">${idx+1}.</span><span class="club">${s.club==="罚杆"?"罚杆":s.club}</span>
+     <span class="mark ${MARK_CLS[s.result]}">${MARK[s.result]} ${({good:"好杆",left:"偏左",right:"偏右",thin:"打薄",fat:"打深",shank:"Shank 插鞘",penalty:"罚杆",holed:"进洞"})[s.result]}</span>
+     <button class="del" onclick="delShot(${idx})">删除</button></li>`).join("")
+    || `<li style="color:var(--muted);border:none">还没有逐杆记录，可只用上方快速记录。</li>`;
+}
+function addShot(){
+  const h = cur().holes[editIdx];
+  const club = document.getElementById("shotClub").value;
+  const res = document.getElementById("shotResult").value;
+  h.shots.push({club, result:res});
+  renderShots(h);
+  syncStrokesAuto(h);
+  render(); // 实时刷新背后表格
+}
+function delShot(i){
+  const h = cur().holes[editIdx];
+  h.shots.splice(i,1);
+  renderShots(h); syncStrokesAuto(h); render();
+}
+/* 未手动填总杆时，逐杆条数变化同步到输入框提示 */
+/* 定位本轮第 i 洞来自球场库的哪座球场、第几洞（用于把现场修正写回球场库） */
+function holeSource(r, i){
+  if (!r.combos || !r.combos.length) return null;
+  let acc = 0;
+  for (const s of r.combos){
+    const hs = partHoles(s.cid, s.part);
+    if (!hs || !hs.length) continue;
+    if (i < acc + hs.length){
+      const start = s.part === "back" ? 9 : 0;   // all / front 从第 1 洞起算
+      return { cid: s.cid, idx: start + (i - acc) };
+    }
+    acc += hs.length;
+  }
+  return null;
+}
+function syncHoleToCourse(){
+  if (editIdx < 0) return;
+  const r = cur(), h = r.holes[editIdx];
+  const src = holeSource(r, editIdx);
+  if (!src){ toast("这一轮不是从球场库载入的，无法定位来源球场"); return; }
+  const c = courseById(src.cid);
+  if (!c || !c.holes || !c.holes[src.idx]){ toast("找不到来源球场数据"); return; }
+  if (!confirm(`把第 ${editIdx+1} 洞的 Par ${h.par} / ${h.yards} 码，写回球场库「${c.name}」第 ${src.idx+1} 洞？\n以后用它新建的轮次都会采用新数据（当前轮次不受影响）。`)) return;
+  c.holes[src.idx] = { par: h.par, yards: h.yards };
+  save(); toast(`已更新球场库「${c.name}」第 ${src.idx+1} 洞 ✓`);
+}
+function syncStrokesAuto(h){
+  if (h.manualStrokes != null) return;
+  document.getElementById("fStrokes").placeholder = h.shots.length ? "自动:" + h.shots.length : "";
+  touchRound();
+}
+/* 标记当前轮次被修改过（供双端合并判断谁更新），只在用户编辑时调用，渲染/合并时不调用 */
+function touchRound(){
+  const r = cur();
+  if (r) r.updatedAt = new Date().toISOString();
+}
+/* 把弹窗当前字段写入当前洞并落库（不关闭弹窗）——实时保存与关闭兜底共用 */
+function writeHole(){
+  if (editIdx < 0) return false;
+  const h = cur().holes[editIdx];
+  if (!h) return false;
+  h.par = parseInt(document.getElementById("fPar").value,10) || h.par;
+  const yv = parseInt(document.getElementById("fYards").value,10);
+  if (yv) h.yards = yv;
+  const sv = id=>{ const v=document.getElementById(id).value; return v===""? null : parseInt(v,10); };
+  h.manualStrokes = sv("fStrokes");
+  h.putts = sv("fPutts");
+  // 边界钳制：总杆 1..20；推杆不得超过总杆（否则上果岭杆数为负，GIR 会误判）
+  if (h.manualStrokes != null) h.manualStrokes = Math.max(1, Math.min(20, h.manualStrokes));
+  if (h.manualStrokes != null && h.putts != null && h.putts > h.manualStrokes) h.putts = h.manualStrokes;
+  h.bunkers = parseInt(document.getElementById("fBunkers").value)||0;
+  const on = document.querySelector("#fairwaySeg button.on");
+  h.fairway = h.par>=4 && on ? on.dataset.v : null;
+  touchRound();
+  save();
+  return true;
+}
+function saveHole(){
+  writeHole();
+  closeModal(true); render();
+}
+function clearHole(){
+  const h = cur().holes[editIdx];
+  h.shots=[]; h.manualStrokes=null; h.putts=null; h.fairway=null; h.bunkers=0;
+  touchRound();
+  closeModal(true); render(); toast("已清空本洞");
+}
+function goHole(dir){
+  const n = cur().holes.length;
+  const target = editIdx + dir;
+  if (target < 0 || target >= n){ saveHole(); toast(dir>0? "已经是最后一洞 ⛳" : "已经是第一洞"); return; }
+  const idx = editIdx;
+  saveHole();          // 先保存当前洞
+  openModal(target);   // 再打开相邻洞
+  toast(dir>0? `已保存第 ${idx+1} 洞 → 第 ${target+1} 洞` : `已保存第 ${idx+1} 洞 → 第 ${target+1} 洞`);
+}
+function closeModal(skipWrite){
+  // 手机上常点遮罩 / ✕ 关闭，这里兜底保存，避免成绩丢失
+  if (!skipWrite && writeHole()){
+    document.getElementById("overlay").classList.remove("show");
+    toast(`已保存第 ${editIdx+1} 洞 ✓`);
+    render();
+    return;
+  }
+  document.getElementById("overlay").classList.remove("show");
+}
+document.getElementById("overlay").addEventListener("click", e=>{
+  if (e.target===e.currentTarget) closeModal();
+});
+
+/* ============ 球场库 / 拼场 ============ */
+function courseById(id){ return state.courses.find(c=>c.id===id); }
+function partLabel(p){ return p==="front"? "前九" : p==="back"? "后九" : "全场"; }
+function partHoles(cid, part){
+  const c = courseById(cid); if (!c) return [];
+  if (part==="front") return c.holes.slice(0,9);
+  if (part==="back") return c.holes.length>9 ? c.holes.slice(9) : [];
+  return c.holes;
+}
+function buildComboHoles(segs){
+  const holes=[], tags=[];
+  (segs||[]).forEach(s=>{
+    const c = courseById(s.cid); if (!c || s.part==="none") return;
+    const start = s.part==="back"? 9 : 0;
+    partHoles(s.cid, s.part).forEach((h,i)=>{
+      holes.push(newHole({par:h.par, yards:h.yards}));
+      tags.push(c.name + " " + (start+i+1));
+    });
+  });
+  return {holes, tags};
+}
+function comboNameOf(segs){
+  return (segs||[]).filter(s=>s.part!=="none").map(s=>{
+    const c = courseById(s.cid);
+    return (c? c.name : "?") + partLabel(s.part);
+  }).join(" + ");
+}
+
+/* ---------- 拼场弹窗 ---------- */
+function openComboModal(){
+  const opts = state.courses.map(c=>`<option value="${c.id}">${c.name}（${c.holes.length}洞）</option>`).join("");
+  ["cbCourse1","cbCourse2"].forEach(id=>{ document.getElementById(id).innerHTML = opts; });
+  const r = cur();
+  let s1 = {cid: state.courses[0].id, part:"front"}, s2 = {cid: state.courses[0].id, part:"back"};
+  if (r.combos && r.combos.length){
+    s1 = r.combos[0] || s1; s2 = r.combos[1] || {cid:s1.cid, part:"none"};
+  } else if (state.combos.length){
+    s1 = state.combos[0].segments[0]; s2 = state.combos[0].segments[1] || {cid:s1.cid, part:"none"};
+  }
+  document.getElementById("cbCourse1").value = s1.cid; document.getElementById("cbPart1").value = s1.part;
+  document.getElementById("cbCourse2").value = s2.cid; document.getElementById("cbPart2").value = s2.part;
+  renderComboPreview(); renderComboList();
+  document.getElementById("comboOverlay").classList.add("show");
+}
+function closeComboModal(){ document.getElementById("comboOverlay").classList.remove("show"); }
+document.getElementById("comboOverlay").addEventListener("click", e=>{
+  if (e.target===e.currentTarget) closeComboModal();
+});
+function currentSegs(){
+  return [
+    { cid: document.getElementById("cbCourse1").value, part: document.getElementById("cbPart1").value },
+    { cid: document.getElementById("cbCourse2").value, part: document.getElementById("cbPart2").value }
+  ];
+}
+function renderComboPreview(){
+  const segs = currentSegs();
+  const {holes, tags} = buildComboHoles(segs);
+  const rows = Math.ceil(holes.length/2);
+  let html = "";
+  for (let r=0; r<rows; r++){
+    html += "<tr>";
+    for (const i of [r, r+rows]){
+      if (i>=holes.length){ html += `<td colspan="4"></td>`; continue; }
+      html += `<td class="hlabel">${i+1}</td><td style="color:var(--muted)">${tags[i]}</td><td>${holes[i].par}</td><td class="yard">${holes[i].yards}y</td>`;
+    }
+    html += "</tr>";
+  }
+  document.getElementById("comboPreviewBody").innerHTML = html || `<tr><td colspan="8" style="color:var(--muted)">请选择至少一段</td></tr>`;
+  const par = holes.reduce((a,h)=>a+h.par,0), y = holes.reduce((a,h)=>a+h.yards,0);
+  const empty = segs.filter(s=>s.part!=="none" && partHoles(s.cid, s.part).length===0)
+    .map(s=>{ const c=courseById(s.cid); return (c?c.name:"该球场") + "（只有 " + (courseById(s.cid)?courseById(s.cid).holes.length:0) + " 洞，无后九）"; });
+  document.getElementById("comboSummary").innerHTML =
+    `共 <b>${holes.length}</b> 洞 · 总 Par <b>${par}</b> · 总码数 <b>${y}</b> 码 · <b>${comboNameOf(segs)}</b>` +
+    (empty.length? `<br><span style="color:var(--bad)">⚠️ ${empty.join("；")}</span>` : "");
+  document.getElementById("comboNewName").placeholder = comboNameOf(segs);
+}
+function renderComboList(){
+  const el = document.getElementById("comboList");
+  if (!state.combos.length){ el.innerHTML = `<div class="hint">还没有常用组合，选好后点「保存组合」。</div>`; return; }
+  el.innerHTML = state.combos.map(c=>{
+    const seg = c.segments.map(s=>{
+      const cu = courseById(s.cid);
+      return (cu? cu.name : "已删除球场") + partLabel(s.part);
+    }).join(" + ");
+    return `<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px dashed var(--line)">
+      <div style="flex:1"><b>${c.name}</b><div class="hint" style="margin-top:2px">${seg}</div></div>
+      <button class="small primary" onclick="useComboById('${c.id}')">套用</button>
+      <button class="small danger" onclick="delCombo('${c.id}')">删除</button>
+    </div>`;
+  }).join("");
+}
+function useComboById(id){
+  const c = state.combos.find(x=>x.id===id); if (!c) return;
+  document.getElementById("cbCourse1").value = c.segments[0].cid;
+  document.getElementById("cbPart1").value = c.segments[0].part;
+  const s2 = c.segments[1] || {cid:c.segments[0].cid, part:"none"};
+  document.getElementById("cbCourse2").value = s2.cid;
+  document.getElementById("cbPart2").value = s2.part;
+  renderComboPreview();
+  applyCombo(c.name);
+}
+function delCombo(id){
+  if (!confirm("删除这个常用组合？")) return;
+  state.combos = state.combos.filter(c=>c.id!==id); renderComboList(); save();
+}
+function saveCombo(){
+  const segs = currentSegs().filter(s=>s.part!=="none");
+  if (!segs.length){ toast("请先选择至少一段"); return; }
+  const name = document.getElementById("comboNewName").value.trim() || comboNameOf(segs);
+  state.combos.push({ id: uid(), name, segments: segs });
+  document.getElementById("comboNewName").value = "";
+  renderComboList(); save(); toast("组合已保存 ⭐");
+}
+function applyCombo(nameOverride){
+  const segs = currentSegs().filter(s=>s.part!=="none");
+  const {holes:nh, tags} = buildComboHoles(segs);
+  if (!nh.length){ toast("请先选择至少一段"); return; }
+  const r = cur();
+  const hasScore = r.holes.some(h=>strokesOf(h)!=null);
+  if (nh.length !== r.holes.length && hasScore){
+    if (!confirm(`洞数从 ${r.holes.length} 变为 ${nh.length}，已有成绩无法按洞号对应，将清空本轮成绩。继续？`)) return;
+    r.holes = nh;
+  } else if (hasScore){
+    if (!confirm("套用新组合后会按洞号保留已有成绩，但每洞的 Par/码数会更新。继续？")) return;
+    nh.forEach((h,i)=>{ const o=r.holes[i]; r.holes[i] = { ...o, par:h.par, yards:h.yards }; });
+  } else {
+    r.holes = nh;
+  }
+  r.tags = tags;
+  r.combos = segs.map(s=>({cid:s.cid, part:s.part}));
+  r.course = nameOverride || comboNameOf(segs);
+  touchRound();
+  closeComboModal(); render(); toast("已套用：" + r.course);
+}
+document.getElementById("btnCombo").onclick = openComboModal;
+
+/* ---------- 球场库 ---------- */
+function renderLib(){
+  const t = document.getElementById("libTable");
+  if (!state.courses.length){ t.innerHTML = `<tr><td class="hint">球场库为空，输入名称后点「存入球场库」。</td></tr>`; return; }
+  t.innerHTML = state.courses.map(c=>{
+    const par = c.holes.reduce((a,h)=>a+h.par,0), y = c.holes.reduce((a,h)=>a+h.yards,0);
+    return `<tr><td style="text-align:left"><b>${c.name}</b> <span class="yard">${c.holes.length}洞 · Par ${par} · ${y}y</span></td>
+      <td style="text-align:right;white-space:nowrap">
+        <button class="small" onclick="loadCourseToRound('${c.id}')">载入本轮</button>
+        <button class="small" onclick="editCourse('${c.id}')">编辑</button>
+        <button class="small danger" onclick="delCourse('${c.id}')">删除</button>
+      </td></tr>`;
+  }).join("");
+}
+function saveToLibrary(){
+  const name = document.getElementById("libNewName").value.trim();
+  if (!name){ toast("请输入球场名称，例如 A 场"); return; }
+  const src = (tempHoles && tempHoles.length)? tempHoles : cur().holes;
+  if (src.length < 18 && !confirm(`当前只有 ${src.length} 洞，球场库通常存 18 洞。仍要保存？`)) return;
+  const c = makeCourse(name, src);
+  state.courses.push(c);
+  document.getElementById("libNewName").value = "";
+  renderLib(); save(); toast(`已存入球场库：${name}`);
+}
+function loadCourseToRound(id){
+  const c = courseById(id); if (!c) return;
+  const r = cur();
+  if (r.holes.some(h=>strokesOf(h)!=null) && !confirm(`载入「${c.name}」会重建本轮 18 洞并清空已有成绩，继续？`)) return;
+  r.holes = c.holes.map(h=>newHole({par:h.par, yards:h.yards}));
+  r.tags = c.holes.map((h,i)=> c.name + " " + (i+1));
+  r.combos = [{cid:c.id, part:"all"}];
+  r.course = c.name;
+  closeCourseModal(); render(); toast(`已载入 ${c.name}`);
+}
+function editCourse(id){ openCourseModal(id); }
+function delCourse(id){
+  const c = courseById(id); if (!c) return;
+  if (!confirm(`删除球场「${c.name}」？引用它的常用组合也会一并删除。`)) return;
+  state.courses = state.courses.filter(x=>x.id!==id);
+  state.combos = state.combos.filter(cm=>!cm.segments.some(s=>s.cid===id));
+  renderLib(); save(); toast("已删除");
+}
+
+/* ============ 球场 / 球洞编辑 ============ */
+let tempHoles = [];
+let editTarget = null;   // null = 编辑当前轮次；否则为球场库中的球场 id
+function openCourseModal(courseId){
+  editTarget = courseId || null;
+  const isLib = !!editTarget;
+  const src = isLib ? courseById(editTarget) : cur();
+  tempHoles = src.holes.map(h=>({par:h.par, yards:h.yards}));
+  document.querySelector("#courseOverlay h3").textContent = isLib ? `🏌️ 球场库：${src.name}` : "🏌️ 球场设置（本轮）";
+  document.querySelector("#courseOverlay .hole-info").textContent = isLib
+    ? "修改这座球场的 18 洞 Par 与码数，保存后所有引用它的组合都会用新数据。"
+    : "可以改每一洞的 Par 与码数，也可以把球场改成 9 洞或自定义洞数。已记录的成绩不会被清空。";
+  document.getElementById("cName").value = src.name;
+  renderHoleEdit(); renderLib();
+  document.getElementById("courseOverlay").classList.add("show");
+}
+function closeCourseModal(){ document.getElementById("courseOverlay").classList.remove("show"); }
+document.getElementById("courseOverlay").addEventListener("click", e=>{
+  if (e.target===e.currentTarget) closeCourseModal();
+});
+function renderHoleEdit(){
+  const rows = Math.ceil(tempHoles.length/2);
+  let html = "";
+  for (let r=0; r<rows; r++){
+    html += "<tr>";
+    for (const i of [r, r+rows]){
+      if (i>=tempHoles.length){ html += `<td colspan="3"></td>`; continue; }
+      const h = tempHoles[i];
+      html += `<td class="hlabel">${i+1}</td>
+        <td><select onchange="editPar(${i},this.value)">${[3,4,5].map(p=>`<option value="${p}" ${p===h.par?"selected":""}>${p}</option>`).join("")}</select></td>
+        <td><input type="number" min="50" max="800" value="${h.yards}" onchange="editYards(${i},this.value)"></td>`;
+    }
+    html += "</tr>";
+  }
+  document.getElementById("holeEditBody").innerHTML = html;
+  document.getElementById("cTotalPar").textContent = tempHoles.reduce((a,h)=>a+h.par,0);
+  document.getElementById("cTotalYards").textContent = tempHoles.reduce((a,h)=>a+h.yards,0) + " 码";
+  document.querySelectorAll("#holeCountSeg button").forEach(b=>{
+    b.classList.toggle("on", parseInt(b.dataset.n,10)===tempHoles.length);
+  });
+}
+function editPar(i,v){ tempHoles[i].par = parseInt(v,10); renderHoleEdit(); }
+function editYards(i,v){ tempHoles[i].yards = parseInt(v,10)||0; renderHoleEdit(); }
+document.getElementById("holeCountSeg").addEventListener("click", e=>{
+  const n = parseInt(e.target.dataset.n||"0",10); if(!n) return;
+  tempHoles = DEFAULT_HOLES.slice(0,n).map((d,i)=> tempHoles[i] || {par:d.par, yards:d.yards});
+  renderHoleEdit();
+});
+function addHole(){
+  const last = tempHoles[tempHoles.length-1] || {par:4, yards:350};
+  tempHoles.push({par:last.par, yards:last.yards});
+  renderHoleEdit();
+}
+function removeHole(){
+  if (tempHoles.length<=1) return;
+  tempHoles.pop(); renderHoleEdit();
+}
+function resetCourse(){
+  if (!confirm("重置为默认 18 洞（Par 72 / 5968 码）？")) return;
+  tempHoles = DEFAULT_HOLES.map(d=>({par:d.par, yards:d.yards}));
+  renderHoleEdit();
+}
+function saveCourse(){
+  const name = document.getElementById("cName").value || "未命名球场";
+  if (editTarget){
+    const c = courseById(editTarget);
+    c.name = name;
+    c.holes = tempHoles.map(t=>({par:t.par, yards:t.yards}));
+    closeCourseModal(); render(); toast(`球场库「${name}」已保存 ✓`);
+    return;
+  }
+  const r = cur();
+  r.course = name;
+  const old = r.holes;
+  r.holes = tempHoles.map((t,i)=>{
+    const base = old[i] || newHole({par:t.par, yards:t.yards});
+    base.par = t.par; base.yards = t.yards;
+    return base;
+  });
+  closeCourseModal(); render(); toast("球场设置已保存 ✓");
+}
+document.getElementById("btnCourse").onclick = ()=> openCourseModal();
+
+/* ============ 顶部操作 ============ */
+document.getElementById("courseName").addEventListener("input", e=>{ cur().course = e.target.value; touchRound(); renderRoundSel(); save(); });
+document.getElementById("roundDate").addEventListener("change", e=>{ cur().date = e.target.value; touchRound(); renderRoundSel(); save(); });
+document.getElementById("roundSel").addEventListener("change", e=>{ state.currentId = e.target.value; render(); });
+document.getElementById("btnTopNew").onclick = ()=>{
+  const r = newRound();
+  state.rounds.unshift(r); state.currentId = r.id; render(); toast("已开始新一轮 ⛳");
+};
+document.getElementById("btnDel").onclick = ()=>{
+  if (state.rounds.length<=1){ toast("至少保留一轮"); return; }
+  if (!confirm("确定删除这一轮成绩？")) return;
+  const delId = state.currentId;
+  state.rounds = state.rounds.filter(r=>r.id!==delId);
+  state.deleted = state.deleted || {};
+  state.deleted[delId] = new Date().toISOString();   // 记墓碑，同步时不再被拉回
+  state.currentId = state.rounds[0].id; render(); toast("已删除（其它设备同步后也会移除）");
+};
+document.getElementById("btnClear").onclick = ()=>{
+  if (!confirm("清空本轮所有成绩（保留球场信息）？")) return;
+  cur().holes = cur().holes.map(h=>newHole({par:h.par, yards:h.yards})); render(); toast("已清空");
+};
+function buildBackup(){
+  return {
+    _type: "golf-scorecard", v: 3, exportedAt: new Date().toISOString(),
+    rounds: state.rounds, courses: state.courses, combos: state.combos,
+    currentId: state.currentId, presetsVersion: state.presetsVersion,
+    deleted: state.deleted || {}
+  };
+}
+function applyImport(data){
+  if (!data || typeof data !== "object") throw 0;
+  // 兼容三种格式：全量备份 / 单轮（新）/ 单轮（旧）
+  if (Array.isArray(data.rounds) && data.rounds.length){
+    let nr = 0;
+    (data.courses||[]).forEach(c=>{ if(!state.courses.some(x=>x.id===c.id)) state.courses.push(c); });
+    (data.combos||[]).forEach(c=>{ if(!state.combos.some(x=>x.id===c.id)) state.combos.push(c); });
+    // 合并删除墓碑，避免从备份导入时把已删除的轮次带回来
+    if (data.deleted) Object.entries(data.deleted).forEach(([id, at])=>{
+      state.deleted[id] = (state.deleted[id] && state.deleted[id] > at) ? state.deleted[id] : at;
+    });
+    data.rounds.forEach(r=>{
+      if (!r.holes || !Array.isArray(r.holes)) return;
+      if (state.rounds.some(x=>x.id===r.id)) return;   // 已有就不重复加
+      if (isDeleted(r.id, r.updatedAt)) return;        // 已删除的不再复活
+      state.rounds.push(r); nr++;
+    });
+    if (data.currentId && state.rounds.some(r=>r.id===data.currentId)) state.currentId = data.currentId;
+    render();
+    toast(`导入完成：新增 ${nr} 轮，共 ${state.rounds.length} 轮 ✓`);
+    return;
+  }
+  let r = data.round || data;
+  if (!r.holes || !Array.isArray(r.holes)) throw 0;
+  (data.courses||[]).forEach(c=>{ if(!state.courses.some(x=>x.id===c.id)) state.courses.push(c); });
+  (data.combos||[]).forEach(c=>{ if(!state.combos.some(x=>x.id===c.id)) state.combos.push(c); });
+  r.id = uid();
+  state.rounds.unshift(r); state.currentId = r.id; render(); toast("导入 1 轮 ✓");
+}
+document.getElementById("btnExport").onclick = ()=>{
+  const payload = buildBackup();
+  const blob = new Blob([JSON.stringify(payload,null,2)], {type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `高尔夫备份_${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  toast(`已导出 ${state.rounds.length} 轮成绩`);
+};
+document.getElementById("btnCopy").onclick = async ()=>{
+  const txt = JSON.stringify(buildBackup());
+  try {
+    await navigator.clipboard.writeText(txt);
+    toast(`已复制 ${state.rounds.length} 轮数据，粘贴到微信发给自己即可`);
+  } catch(e){
+    document.getElementById("pasteArea").value = txt;
+    document.getElementById("pasteOverlay").classList.add("show");
+    toast("浏览器不让自动复制，请手动全选复制");
+  }
+};
+function closePasteModal(){ document.getElementById("pasteOverlay").classList.remove("show"); }
+document.getElementById("pasteOverlay").addEventListener("click", e=>{
+  if (e.target===e.currentTarget) closePasteModal();
+});
+document.getElementById("btnPaste").onclick = ()=>{
+  document.getElementById("pasteArea").value = "";
+  document.getElementById("pasteOverlay").classList.add("show");
+};
+function importFromPaste(){
+  const txt = document.getElementById("pasteArea").value.trim();
+  if (!txt){ toast("请先粘贴内容"); return; }
+  try { applyImport(JSON.parse(txt)); closePasteModal(); }
+  catch(err){ toast("内容不是有效的 JSON"); }
+}
+document.getElementById("btnImport").onclick = ()=> document.getElementById("fileInput").click();
+document.getElementById("fileInput").onchange = e=>{
+  const f = e.target.files[0]; if(!f) return;
+  const rd = new FileReader();
+  rd.onload = ()=>{
+    try { applyImport(JSON.parse(rd.result)); }
+    catch(err){ toast("文件格式不对"); }
+  };
+  rd.readAsText(f); e.target.value="";
+};
+function toast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("show");
+  setTimeout(()=>t.classList.remove("show"), 1800);
+}
+
+render();
+</script>
+</body>
+</html>
