@@ -192,6 +192,22 @@
   .club-stats td { font-size: 13px; }
   .club-stats th { padding: 6px 4px; font-size: 10px; white-space: nowrap; }
   .club-stats td { padding: 8px 4px; white-space: nowrap; }
+
+  /* 历史：球场最佳卡片 */
+  .best-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px,1fr)); gap: 9px; }
+  .best-card {
+    background: linear-gradient(145deg,#fbfcf8,#f2f6ee); border: 1px solid var(--line);
+    border-radius: 14px; padding: 11px 12px; position: relative; overflow: hidden;
+  }
+  .best-card::before { content:""; position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--green); opacity:.7; }
+  .best-card .course { font-size: 12px; color: var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .best-card .score { font-size: 24px; font-weight: 800; letter-spacing:-.5px; margin-top:2px; }
+  .best-card .score small { font-size: 12px; font-weight: 600; color: var(--muted); }
+  .best-card .meta { font-size: 11px; color: var(--muted); margin-top:3px; }
+
+  /* 历史：总杆趋势折线 */
+  .trend-wrap { overflow-x: auto; margin: 4px 0 6px; }
+  .trend-wrap svg { display:block; width:100%; min-width:520px; height:auto; }
   .pct-straight { color: var(--good); font-weight: 700; }
   .pct-draw, .pct-fade { color: #0d9488; }
   .pct-pull, .pct-push { color: #d9730d; }
@@ -438,6 +454,8 @@
     <div class="tech-grid" id="histGrid"></div>
     <div class="section-label" style="margin-top:14px" id="histPeriodLabel">按时间汇总</div>
     <div style="overflow-x:auto"><table id="histPeriodTable" style="font-size:13px"></table></div>
+    <div class="section-label" style="margin-top:14px">🏆 各球场最佳成绩</div>
+    <div id="histBest"></div>
     <div class="section-label" style="margin-top:14px">各球场成绩</div>
     <div style="overflow-x:auto"><table id="histCourseTable" style="font-size:13px"></table></div>
     <div class="section-label" style="margin-top:14px">轮次明细（点行可切换）</div>
@@ -836,6 +854,60 @@ function fillHistOptions(all){
   if (mSel.value !== histFilter.month) { histFilter.month = "all"; mSel.value = "all"; }
   if (cSel.value !== histFilter.course) { histFilter.course = "all"; cSel.value = "all"; }
 }
+/* 最近轮次总杆趋势折线图（原生 SVG，零依赖）
+   - 纵轴总杆自动缩放；点按总杆段位配色；9 洞轮次用空心点/虚线区分，避免与 18 洞直接误导 */
+function renderTrend(recent){
+  if (!recent.length) return "";
+  const W=560, H=190, L=38, R=12, T=22, B=42;   // 画布与留白
+  const vals = recent.map(x=>x.s.strokes);
+  let lo = Math.min(...vals), hi = Math.max(...vals);
+  if (hi-lo < 6){ const mid=(hi+lo)/2; lo=Math.floor(mid-4); hi=Math.ceil(mid+4); }
+  const pad = Math.max(3, Math.round((hi-lo)*0.12)); lo = Math.max(1, lo-pad); hi = hi+pad;
+  const X = i => L + (recent.length===1 ? (W-L-R)/2 : i*(W-L-R)/(recent.length-1));
+  const Y = v => T + (hi-v)/(hi-lo)*(H-T-B);
+  const esc = s => String(s==null?"":s).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  const TIER_COLOR = { over100:"#8a958f", u100:"#d9730d", u90:"#c79a3a", u80:"#1b8a5c", under:"#0fae6b" };
+  const pts = recent.map((x,i)=>[X(i), Y(x.s.strokes)]);
+
+  // 水平参考网格（3 条）
+  let g = "";
+  [0,0.5,1].forEach(f=>{
+    const v = hi - f*(hi-lo), y = Y(v);
+    g += `<line x1="${L}" y1="${y.toFixed(1)}" x2="${W-R}" y2="${y.toFixed(1)}" stroke="#e5ebe4" stroke-width="1" stroke-dasharray="3 3"/>`;
+    g += `<text x="${L-6}" y="${(y+3.5).toFixed(1)}" text-anchor="end" font-size="10" fill="#8a958f">${Math.round(v)}</text>`;
+  });
+
+  // 折线：9 洞轮次用虚线衔接，提示不可与 18 洞直接比总杆
+  let segs = "";
+  for (let i=0;i<pts.length-1;i++){
+    const nine = recent[i].s.played < 18 || recent[i+1].s.played < 18;
+    segs += `<line x1="${pts[i][0].toFixed(1)}" y1="${pts[i][1].toFixed(1)}" x2="${pts[i+1][0].toFixed(1)}" y2="${pts[i+1][1].toFixed(1)}"
+      stroke="#1b8a5c" stroke-width="2.2" ${nine?'stroke-dasharray="4 3" opacity=".65"':''}/>`;
+  }
+
+  // 数据点 + 数值 + 日期标签
+  let dots = "";
+  recent.forEach((x,i)=>{
+    const [px,py] = pts[i];
+    const tier = totalTier(x.s.strokes, x.s.par);
+    const color = TIER_COLOR[tier] || "#1b8a5c";
+    const nine = x.s.played < 18;
+    const label = (x.r.date||"").slice(5).replace("-","/") || `#${i+1}`;
+    dots += `<g>
+      <circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="5.5" fill="${nine?'#fff':color}" stroke="${color}" stroke-width="2.2">
+        <title>${esc(x.r.date)} ${esc(x.r.course)} · ${x.s.strokes} 杆 (${x.s.played} 洞) · ${x.s.diff>0?"+":""}${x.s.diff}</title>
+      </circle>
+      <text x="${px.toFixed(1)}" y="${(py-11).toFixed(1)}" text-anchor="middle" font-size="11" font-weight="700" fill="${color}">${x.s.strokes}</text>
+      <text x="${px.toFixed(1)}" y="${H-16}" text-anchor="middle" font-size="10" fill="#8a958f">${esc(label)}</text>
+      ${nine?`<text x="${px.toFixed(1)}" y="${H-4}" text-anchor="middle" font-size="9" fill="#8a958f">${x.s.played}洞</text>`:""}
+    </g>`;
+  });
+
+  return `<div class="trend-wrap"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="最近 ${recent.length} 轮总杆趋势">
+    ${g}${segs}${dots}</svg></div>
+    <div class="hint" style="margin-bottom:8px">最近 ${recent.length} 轮总杆 · 点为段位色（灰=未破百 / 橙=破百 / 金=破九 / 绿=破八 / 亮绿=低于标准杆）· 空心点与虚线 = 9 洞轮次（总杆不可与 18 洞直接比）</div>`;
+}
+
 function renderHistory(){
   const all = scoredRounds();
   fillHistOptions(all);
@@ -853,6 +925,7 @@ function renderHistory(){
        <div class="value">–</div><div class="sub">${all.length?"换个年份/月份/球场，或点「清除筛选」":"记录一场球后这里会自动汇总"}</div></div>`;
     ["histPeriodTable","histCourseTable","histList"].forEach(id=>document.getElementById(id).innerHTML="");
     document.getElementById("histTrend").innerHTML = "";
+    document.getElementById("histBest").innerHTML = "";
     return;
   }
   const sum = (f)=> rs.reduce((a,x)=>a+f(x.s),0);
@@ -915,19 +988,30 @@ function renderHistory(){
        <td class="${v.diff/v.n>0?'diff bad':''}">${v.diff/v.n>0?"+":""}${(v.diff/v.n).toFixed(1)}</td>
        <td>${v.best>0?"+":""}${v.best}</td></tr>`).join("") + `</tbody>`;
 
-  // 轮次明细 + 趋势条（按日期正序画，列表按倒序显示）
+  // 轮次明细（按日期倒序显示）
   const asc = rs.slice().sort((a,b)=> String(a.r.date).localeCompare(String(b.r.date)) || 0);
-  const recent = asc.slice(-12);
-  const maxAbs = Math.max(1, ...recent.map(x=>Math.abs(x.s.diff)));
-  document.getElementById("histTrend").innerHTML =
-    `<div style="display:flex;align-items:flex-end;gap:4px;height:64px;margin:4px 0 6px">` +
-    recent.map(x=>{
-      const h = Math.max(4, Math.round(Math.abs(x.s.diff)/maxAbs*50));
-      const good = x.s.diff<=0;
-      return `<div title="${x.r.date} ${x.r.course} ${x.s.strokes}杆 ${x.s.diff>0?'+':''}${x.s.diff}"
-        style="flex:1;height:${h}px;background:${good?'var(--good)':'var(--accent)'};border-radius:3px 3px 0 0;opacity:.85"></div>`;
-    }).join("") + `</div>
-    <div class="hint" style="margin-bottom:8px">绿色 = 平/低于标准杆，橙色 = 高于标准杆（最近 ${recent.length} 轮）</div>`;
+
+  // 球场最佳卡片：按「每洞平均相对标准杆」比较，公平处理 9/18 洞混合
+  const bestByCourse = {};
+  rs.forEach(({r,s})=>{
+    const k = r.course || "未命名";
+    const perHole = s.diff / s.played;   // 越小越好
+    if (!bestByCourse[k] || perHole < bestByCourse[k].perHole)
+      bestByCourse[k] = { perHole, s, r };
+  });
+  document.getElementById("histBest").innerHTML =
+    Object.entries(bestByCourse).sort((a,b)=>a[1].perHole-b[1].perHole).map(([k,v])=>{
+      const tier = totalTier(v.s.strokes, v.s.par);
+      const diffTxt = (v.s.diff>0?"+":"") + v.s.diff;
+      return `<div class="best-card">
+        <div class="course" title="${k}">${k}</div>
+        <div class="score ${tier?'tier-'+tier:''}">${diffTxt}<small> · ${v.s.strokes} 杆</small></div>
+        <div class="meta">${v.r.date||"未标日期"} · ${v.s.played} 洞</div>
+      </div>`;
+    }).join("");
+
+  // 总杆趋势折线图（最近 10 轮，按日期正序）
+  document.getElementById("histTrend").innerHTML = renderTrend(asc.slice(-10));
   document.getElementById("histList").innerHTML =
     `<thead><tr><th>日期</th><th>球场</th><th>杆数</th><th>±</th><th>推杆</th><th>GIR</th></tr></thead><tbody>` +
     asc.slice().reverse().map(x=>
