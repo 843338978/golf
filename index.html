@@ -190,9 +190,12 @@
   .edit-btn:hover { opacity: 1; }
 
   .club-stats td { font-size: 13px; }
-  .pct-good { color: var(--good); font-weight: 700; }
-  .pct-left { color: var(--left); }
-  .pct-right { color: var(--right); }
+  .club-stats th { padding: 6px 4px; font-size: 10px; white-space: nowrap; }
+  .club-stats td { padding: 8px 4px; white-space: nowrap; }
+  .pct-straight { color: var(--good); font-weight: 700; }
+  .pct-draw, .pct-fade { color: #0d9488; }
+  .pct-pull, .pct-push { color: #d9730d; }
+  .pct-hook, .pct-slice { color: #b42318; }
   .pct-thin { color: #b42318; }
   .pct-fat { color: #7e57a3; }
   .stat-footer { text-align: center; color: var(--muted); font-size: 12.5px; margin-top: 8px; }
@@ -265,8 +268,11 @@
   .shot-list .idx { color: var(--muted); width: 24px; font-size: 12px; }
   .shot-list .club { font-weight: 700; min-width: 52px; }
   .mark { font-weight: 700; }
-  .m-good { color: var(--good); } .m-left { color: var(--left); }
-  .m-right { color: var(--right); } .m-thin { color: #b42318; }
+  .m-straight { color: var(--good); }
+  .m-draw { color: #0d9488; } .m-fade { color: #0d9488; }
+  .m-pull { color: #d9730d; } .m-push { color: #d9730d; }
+  .m-hook { color: #b42318; } .m-slice { color: #b42318; }
+  .m-thin { color: #b42318; }
   .m-fat { color: #7e57a3; } .m-shank { color: #d946ef; } .m-penalty { color: #b42318; } .m-holed { color: var(--ink); }
   .shot-list .del { margin-left: auto; background: none; color: #b42318; font-size: 12px; padding: 2px 6px; }
   .add-shot { display: flex; gap: 8px; margin-top: 10px; }
@@ -356,7 +362,7 @@
     <div style="overflow-x:auto">
     <table class="club-stats">
       <thead>
-        <tr><th>球杆</th><th>总杆</th><th>✓好杆</th><th>←偏左</th><th>→偏右</th><th>↑打薄</th><th>↓打深</th><th>⇢Shank</th><th>✗罚杆</th></tr>
+        <tr><th>球杆</th><th>总杆</th><th>✓直</th><th>↰左曲</th><th>↱右曲</th><th>←左直</th><th>→右直</th><th>↙Hook</th><th>↘Slice</th><th>↑薄</th><th>↓深</th><th>⇢Shank</th><th>✗罚</th></tr>
       </thead>
       <tbody id="clubBody"></tbody>
     </table>
@@ -511,9 +517,13 @@
     <div class="add-shot">
       <select id="shotClub"></select>
       <select id="shotResult">
-        <option value="good">✓ 好杆</option>
-        <option value="left">← 偏左</option>
-        <option value="right">→ 偏右</option>
+        <option value="straight">✓ 直球 Straight</option>
+        <option value="draw">↰ 小左曲 Draw</option>
+        <option value="fade">↱ 小右曲 Fade</option>
+        <option value="pull">← 左直 Pull</option>
+        <option value="push">→ 右直 Push</option>
+        <option value="hook">↙ 左曲 Hook</option>
+        <option value="slice">↘ 右曲 Slice</option>
         <option value="thin">↑ 打薄</option>
         <option value="fat">↓ 打深/挖地</option>
         <option value="shank">⇢ Shank 插鞘（杆颈球）</option>
@@ -688,8 +698,11 @@ const PRESET_COURSES = [
     {par:4,yards:445},{par:3,yards:170},{par:4,yards:430} ] }
 ];
 const CLUBS = ["1号木","3号木","5号木","4h铁木","3i","4i","5i","6i","7i","8i","9i","Pw","50°","52°","56°","58°","60°","推杆","罚杆"];
-const MARK = { good:"✓", left:"←", right:"→", thin:"↑", fat:"↓", shank:"⇢", penalty:"✗", holed:"◎" };
-const MARK_CLS = { good:"m-good", left:"m-left", right:"m-right", thin:"m-thin", fat:"m-fat", shank:"m-shank", penalty:"m-penalty", holed:"m-holed" };
+const MARK = { straight:"✓", draw:"↰", fade:"↱", pull:"←", push:"→", hook:"↙", slice:"↘", thin:"↑", fat:"↓", shank:"⇢", penalty:"✗", holed:"◎" };
+// 旧版本数据兼容：good/left/right → straight/pull/push
+function shapeOf(r){ if(r==="good") return "straight"; if(r==="left") return "pull"; if(r==="right") return "push"; return r; }
+const GOOD_SHAPES = { straight:1, draw:1, fade:1, holed:1 }; // 好杆（可控球路）
+const MARK_CLS = { straight:"m-straight", draw:"m-draw", fade:"m-fade", pull:"m-pull", push:"m-push", hook:"m-hook", slice:"m-slice", thin:"m-thin", fat:"m-fat", shank:"m-shank", penalty:"m-penalty", holed:"m-holed" };
 const LS_KEY = "golf-scorecard-v1";
 const FW_LABEL = { hit:"✓", left:"←", right:"→", miss:"✗" };
 
@@ -1245,7 +1258,7 @@ function shotStr(h){
   if (!h.shots.length) return "";
   let t = h.shots.map(s=>{
     const c = s.club==="罚杆" ? "罚" : s.club;
-    return c + MARK[s.result];
+    return c + (MARK[shapeOf(s.result)] || "");
   }).join(" ");
   return t;
 }
@@ -1301,30 +1314,37 @@ function renderClubStats(r){
   const m = {};
   let total=0, good=0;
   r.holes.forEach(h=>h.shots.forEach(s=>{
-    if (!m[s.club]) m[s.club]={n:0,good:0,left:0,right:0,thin:0,fat:0,shank:0,pen:0};
+    const res = shapeOf(s.result);
+    if (!m[s.club]) m[s.club]={n:0,straight:0,draw:0,fade:0,pull:0,push:0,hook:0,slice:0,thin:0,fat:0,shank:0,pen:0};
     const o=m[s.club]; o.n++; total++;
-    if (s.result==="good"||s.result==="holed"){o.good++;good++;}
-    else if(s.result==="left")o.left++;
-    else if(s.result==="right")o.right++;
-    else if(s.result==="thin")o.thin++;
-    else if(s.result==="fat")o.fat++;
-    else if(s.result==="shank")o.shank++;
-    else if(s.result==="penalty")o.pen++;
+    if (GOOD_SHAPES[res]){ o[res==="holed"?"straight":res]++; good++; }
+    else if(res==="pull")o.pull++;
+    else if(res==="push")o.push++;
+    else if(res==="hook")o.hook++;
+    else if(res==="slice")o.slice++;
+    else if(res==="thin")o.thin++;
+    else if(res==="fat")o.fat++;
+    else if(res==="shank")o.shank++;
+    else if(res==="penalty")o.pen++;
   }));
   const keys = Object.keys(m).sort((a,b)=>CLUBS.indexOf(a)-CLUBS.indexOf(b));
   const pc = (a,b)=> b? Math.round(a/b*100)+"%" : "0%";
   document.getElementById("clubBody").innerHTML = keys.map(k=>{
     const o=m[k];
     return `<tr><td><b>${k}</b></td><td>${o.n}</td>
-      <td class="pct-good">${pc(o.good,o.n)}</td>
-      <td class="pct-left">${pc(o.left,o.n)}</td>
-      <td class="pct-right">${pc(o.right,o.n)}</td>
+      <td class="pct-straight">${pc(o.straight,o.n)}</td>
+      <td class="pct-draw">${pc(o.draw,o.n)}</td>
+      <td class="pct-fade">${pc(o.fade,o.n)}</td>
+      <td class="pct-pull">${pc(o.pull,o.n)}</td>
+      <td class="pct-push">${pc(o.push,o.n)}</td>
+      <td class="pct-hook">${pc(o.hook,o.n)}</td>
+      <td class="pct-slice">${pc(o.slice,o.n)}</td>
       <td class="pct-thin">${pc(o.thin,o.n)}</td>
       <td class="pct-fat">${pc(o.fat,o.n)}</td>
       <td class="m-shank">${pc(o.shank,o.n)}</td>
       <td class="m-penalty">${pc(o.pen,o.n)}</td></tr>`;
-  }).join("") || `<tr><td colspan="9" style="color:var(--muted)">暂无逐杆数据，点击每行的 ✏️ 开始逐杆记录</td></tr>`;
-  document.getElementById("clubFooter").textContent = keys.length? `总杆 ${total} 杆 · 好杆率 ${pc(good,total)}` : "";
+  }).join("") || `<tr><td colspan="13" style="color:var(--muted)">暂无逐杆数据，点击每行的 ✏️ 开始逐杆记录</td></tr>`;
+  document.getElementById("clubFooter").textContent = keys.length? `总杆 ${total} 杆 · 好杆率 ${pc(good,total)}（直球/小左曲/小右曲/进洞）` : "";
 }
 
 /* ============ 技术统计 ============ */
@@ -1490,10 +1510,13 @@ document.getElementById("fairwaySeg").addEventListener("click", e=>{
 });
 function renderShots(h){
   const ul = document.getElementById("shotList");
-  ul.innerHTML = h.shots.map((s,idx)=>
-    `<li><span class="idx">${idx+1}.</span><span class="club">${s.club==="罚杆"?"罚杆":s.club}</span>
-     <span class="mark ${MARK_CLS[s.result]}">${MARK[s.result]} ${({good:"好杆",left:"偏左",right:"偏右",thin:"打薄",fat:"打深",shank:"Shank 插鞘",penalty:"罚杆",holed:"进洞"})[s.result]}</span>
-     <button class="del" onclick="delShot(${idx})">删除</button></li>`).join("")
+  const SHAPE_LABEL = { straight:"直球", draw:"小左曲", fade:"小右曲", pull:"左直", push:"右直", hook:"左曲Hook", slice:"右曲Slice", thin:"打薄", fat:"打深", shank:"Shank 插鞘", penalty:"罚杆", holed:"进洞" };
+  ul.innerHTML = h.shots.map((s,idx)=>{
+    const res = shapeOf(s.result);
+    return `<li><span class="idx">${idx+1}.</span><span class="club">${s.club==="罚杆"?"罚杆":s.club}</span>
+     <span class="mark ${MARK_CLS[res]}">${MARK[res]} ${SHAPE_LABEL[res]}</span>
+     <button class="del" onclick="delShot(${idx})">删除</button></li>`;
+  }).join("")
     || `<li style="color:var(--muted);border:none">还没有逐杆记录，可只用上方快速记录。</li>`;
 }
 function addShot(){
