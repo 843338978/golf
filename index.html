@@ -208,6 +208,19 @@
   /* 历史：总杆趋势折线 */
   .trend-wrap { overflow-x: auto; margin: 4px 0 6px; }
   .trend-wrap svg { display:block; width:100%; min-width:520px; height:auto; }
+
+  /* 挥杆诊断 */
+  .diag-empty { color: var(--muted); font-size: 13px; line-height: 1.6; padding: 4px 2px; }
+  .diag-item { border: 1px solid var(--line); border-radius: 14px; padding: 12px 13px; margin-bottom: 10px; background: #fcfdfa; }
+  .diag-item:last-child { margin-bottom: 0; }
+  .diag-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .diag-badge { font-size: 16px; font-weight: 800; }
+  .diag-evidence { margin-left: auto; font-size: 11.5px; color: var(--muted); background: #eef2ec; border-radius: 999px; padding: 3px 9px; }
+  .diag-block { margin-top: 9px; }
+  .diag-block .lbl { font-size: 11.5px; font-weight: 700; color: var(--muted); margin-bottom: 4px; }
+  .diag-block ul { margin: 0; padding-left: 17px; }
+  .diag-block li { font-size: 12.5px; line-height: 1.65; color: var(--ink); }
+  .diag-block.do .lbl { color: var(--good); }
   .pct-straight { color: var(--good); font-weight: 700; }
   .pct-draw, .pct-fade { color: #0d9488; }
   .pct-pull, .pct-push { color: #d9730d; }
@@ -384,6 +397,12 @@
     </table>
     </div>
     <div class="stat-footer" id="clubFooter"></div>
+  </div>
+
+  <!-- 挥杆诊断 -->
+  <div class="card">
+    <div class="card-title"><span class="icon">🔍</span> 挥杆诊断</div>
+    <div id="diagBody"></div>
   </div>
 
   <!-- 云同步 -->
@@ -1297,6 +1316,7 @@ function render(){
   renderChips(r);
   renderTable(r);
   renderClubStats(r);
+  renderDiag(r);
   renderTech(r);
   renderHistory();
   save();
@@ -1429,6 +1449,66 @@ function renderClubStats(r){
       <td class="m-penalty">${pc(o.pen,o.n)}</td></tr>`;
   }).join("") || `<tr><td colspan="13" style="color:var(--muted)">暂无逐杆数据，点击每行的 ✏️ 开始逐杆记录</td></tr>`;
   document.getElementById("clubFooter").textContent = keys.length? `总杆 ${total} 杆 · 好杆率 ${pc(good,total)}（直球/小左曲/小右曲/进洞）` : "";
+}
+
+/* ============ 挥杆诊断（基于本轮逐杆球路分布，规则驱动） ============ */
+const DIAG_KNOWLEDGE = {
+  fat:    { name:"打深 / Chunk", why:["下杆太陡、杆头先砍到球后面的草，杆面在触球前就已减速","重心后坐或身体过早抬起，击球点落在球后 1–2 厘米","球位太靠后，或上杆过高导致下杆失控"], fix:["球位前移约一个球，站姿保持前倾到收杆","先转髋再放手，想象『扫走草皮』而不是『挖土』","用 7 铁做半挥杆，只练干净触球，追求草皮痕迹在球的前方"] },
+  thin:   { name:"打薄 / Thin", why:["重心后坐或身体过早抬起，杆头底部从球的上半部擦过","球位太靠前，挥杆弧线最低点落在球后","下杆时手臂先动、右手过早发力把杆头挑起"], fix:["保持脊柱前倾角度直到收杆，头不要提前抬起","球位移到站位中央稍靠后，确认杆头最低点在球位","放松握杆，用『手臂挂住杆』的感觉做 1/2 挥杆"] },
+  hook:   { name:"左曲 / Hook", why:["触球瞬间杆面关闭——右手球手常见是右手盖住左手太多（强握）","挥杆平面太平、从内侧过度下杆，杆头走『兜圈』路径","右肩主动发力，收杆时杆头包住左臂"], fix:["先调握杆：左手拇指略偏目标右侧，右手微盖即可","练『方正杆面』：慢速半挥，检查触球瞬间杆面是否对准目标","收杆时让胸部和腰带扣都对准目标，别提前转开"] },
+  slice:  { name:"右曲 / Slice", why:["杆面在触球时开放，或下杆从外侧『砍』球，产生顺时针旋转","握杆太弱、上杆过早转身让杆身落在身体后面","重心逆转，下杆时身体往球的方向倒"], fix:["握杆稍加强一点，触球时想象『用杆面盖住球』","从内侧下杆，右肘贴近身体，避免过早伸直手臂","完整收杆到左肩上方，练 7 铁小右曲→直球的过渡"] },
+  shank:  { name:"插鞘 / Shank", why:["球离身体太近或太远，双臂过直，触球点是杆颈而非杆面","下杆太陡且重心压向球，杆头被『挤』出去","紧张时右手过早发力，杆面突然翻转"], fix:["站位时双臂自然弯曲，球位约与左手腕成一条垂线","先做不发力的一半挥杆，找回杆头先于手的感觉","球杆缩短握到握把末端，用 9 铁近距离练触球中心"] },
+  pull:   { name:"左直 / Pull", why:["瞄准就偏左——站姿、脚线或杆面与目标线没校准","上杆太内侧或过陡，下杆路径从内向外但杆面已朝左","身体过早打开，杆面没能跟上"], fix:["先用杆头在地面上对准目标线，再摆脚线平行","上杆到顶点时背部对准目标，下杆保持杆面方正","让收杆完整停在目标左侧，不要提前『看球』抬头"] },
+  push:   { name:"右直 / Push", why:["瞄准偏右，或杆面在触球时开放但路径还算方正","上杆太外侧，下杆从外向内却没能把杆面关回来","重心留在右脚，击球时没有完成转移"], fix:["确认杆面与脚线平行后再站定","上杆走内侧，下杆右肘贴身、让杆头自然回到球位","重心明确转移到左脚，收杆重量落在前脚"] },
+  penalty:{ name:"罚杆偏多", why:["选杆过于自信，目标线贴边、容错空间太小","对球场陌生，没算清障碍区距离","紧张时改动作，反而打出平时不会有的失误"], fix:["用『下一杆好打』的位置倒推选杆，宁可多一杆","罚杆后先深呼吸，回到最简单的挥杆","记下每次罚杆的具体球洞和原因，下次绕开"] }
+};
+function diagnoseSwing(r){
+  const shots = [];
+  r.holes.forEach(h=>h.shots.forEach(s=>shots.push({club:s.club, result:shapeOf(s.result)})));
+  const total = shots.length;
+  if (total < 5) return [];   // 样本太少不下结论，避免误报
+  const out = [];
+  const add = (key, evidence, scope)=>{
+    const k = DIAG_KNOWLEDGE[key]; if(!k) return;
+    out.push({ key, name:k.name, evidence, scope, why:k.why, fix:k.fix });
+  };
+  // 1) 整体失衡：某一失误占全轮 ≥40% 且至少 3 次
+  Object.keys(DIAG_KNOWLEDGE).forEach(key=>{
+    const n = shots.filter(s=>s.result===key).length;
+    if (n>=3 && n/total>=0.4) add(key, `本轮 ${total} 杆中 ${n} 杆（${Math.round(n/total*100)}%）`, "整体球路");
+  });
+  // 2) 球杆级集中：某杆 ≥3 次里同一失误 ≥50%（且至少 2 次）
+  const byClub = {};
+  shots.forEach(s=>{ (byClub[s.club] = byClub[s.club]||[]).push(s); });
+  Object.entries(byClub).forEach(([club,arr])=>{
+    if (arr.length<3) return;
+    Object.keys(DIAG_KNOWLEDGE).forEach(key=>{
+      const n = arr.filter(s=>s.result===key).length;
+      if (n>=2 && n/arr.length>=0.5)
+        add(key, `${club} ${arr.length} 杆中 ${n} 杆（${Math.round(n/arr.length*100)}%）`, club);
+    });
+  });
+  return out.slice(0,4);   // 最多 4 条，避免刷屏
+}
+function renderDiag(r){
+  const el = document.getElementById("diagBody");
+  const items = diagnoseSwing(r);
+  if (!items.length){
+    const shotN = r.holes.reduce((a,h)=>a+h.shots.length,0);
+    el.innerHTML = `<div class="diag-empty">${shotN<5
+      ? `已记录 ${shotN} 杆逐杆数据——再记 ${5-shotN} 杆，系统会自动分析你的球路模式并给出针对性建议。`
+      : "本轮球路分布没有明显集中的问题。继续保持，每洞记录逐杆细节，诊断会随数据累积更准。"}</div>`;
+    return;
+  }
+  el.innerHTML = items.map(d=>`
+    <div class="diag-item">
+      <div class="diag-head">
+        <span class="diag-badge">⚠️ ${d.name}</span>
+        <span class="diag-evidence">${d.evidence}</span>
+      </div>
+      <div class="diag-block"><div class="lbl">可能原因</div><ul>${d.why.map(x=>`<li>${x}</li>`).join("")}</ul></div>
+      <div class="diag-block do"><div class="lbl">下一场可以试</div><ul>${d.fix.map(x=>`<li>${x}</li>`).join("")}</ul></div>
+    </div>`).join("");
 }
 
 /* ============ 技术统计 ============ */
