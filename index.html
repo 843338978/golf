@@ -331,6 +331,34 @@
     max-width: 88vw; text-align: center;
   }
   .toast.show { opacity: .95; }
+
+  /* ===== 成绩单 ===== */
+  .report-modal { max-width: 480px; }
+  .rcard { background:#fff; border:1px solid var(--line); border-radius:16px; padding:16px; }
+  .rhead { text-align:center; border-bottom:2px solid var(--green); padding-bottom:12px; margin-bottom:12px; }
+  .rhead .course { font-size:18px; font-weight:800; letter-spacing:.3px; }
+  .rhead .date { font-size:12px; color:var(--muted); margin-top:2px; }
+  .rhead .bigscore { font-size:46px; font-weight:800; line-height:1.1; margin-top:8px; letter-spacing:-1px; }
+  .rhead .bigscore small { font-size:15px; font-weight:600; color:var(--muted); }
+  .rhead .badge { display:inline-block; margin-top:4px; font-size:12px; font-weight:700; border-radius:999px; padding:3px 12px; background:var(--green-soft); color:var(--green); }
+  .rgrid { display:grid; grid-template-columns:repeat(4,1fr); gap:7px; margin:12px 0; }
+  .rgrid .cell { background:#f6f8f4; border-radius:9px; padding:8px 4px; text-align:center; }
+  .rgrid .cell .k { font-size:10.5px; color:var(--muted); }
+  .rgrid .cell .v { font-size:16px; font-weight:800; margin-top:2px; }
+  .rholes { width:100%; border-collapse:collapse; font-size:11px; margin-top:6px; }
+  .rholes th { padding:5px 2px; background:#eef3eb; color:var(--muted); font-weight:700; font-size:10px; border:1px solid #e3e9df; }
+  .rholes td { padding:5px 2px; text-align:center; border:1px solid #e9ede5; }
+  .rholes tr.sub td { background:#f6f8f4; font-weight:700; }
+  .rholes td.good { color:var(--good); font-weight:800; }
+  .rholes td.bad { color:var(--accent); font-weight:800; }
+  .rfoot { text-align:center; font-size:10.5px; color:var(--muted); margin-top:12px; border-top:1px solid var(--line); padding-top:8px; }
+  @media print {
+    body { background:#fff; padding:0; }
+    .appbar, .fab, .summary-bar, .card:not(.never), .overlay:not(#reportOverlay), #reportOverlay .modal-actions, #reportOverlay .hint, .modal-close { display:none !important; }
+    #reportOverlay { position:static; background:none; display:block !important; padding:0; }
+    #reportOverlay .modal { max-width:none; box-shadow:none; padding:0; border-radius:0; }
+    .rcard { border:none; }
+  }
 </style>
 
 </head>
@@ -344,6 +372,7 @@
       <div class="t2">记录每一杆 · 看清每一洞</div>
     </div>
     <div class="spacer"></div>
+    <button class="small" id="btnReport" style="background:rgba(255,255,255,.22);color:#fff;border:1px solid rgba(255,255,255,.35)">📋 成绩单</button>
     <button class="small ghost" id="btnTopNew">＋ 新一轮</button>
   </div>
 
@@ -480,6 +509,19 @@
     <div class="section-label" style="margin-top:14px">轮次明细（点行可切换）</div>
     <div id="histTrend"></div>
     <div style="overflow-x:auto"><table id="histList" style="font-size:13px"></table></div>
+  </div>
+</div>
+
+<!-- 成绩单弹窗 -->
+<div class="overlay" id="reportOverlay">
+  <div class="modal report-modal">
+    <button class="modal-close small" onclick="closeReport()">✕ 关闭</button>
+    <div id="reportBody"></div>
+    <div class="modal-actions">
+      <button class="ghost" onclick="copyReport()">📄 复制文字</button>
+      <button class="primary" onclick="saveReportImage()">🖼️ 存为图片</button>
+    </div>
+    <div class="hint" style="margin-top:8px;text-align:center">图片可直接发微信；文字版适合贴到群聊 / 备忘录。电脑上还可用浏览器打印存 PDF。</div>
   </div>
 </div>
 
@@ -1511,6 +1553,155 @@ function renderDiag(r){
     </div>`).join("");
 }
 
+/* ============ 成绩单 ============ */
+function reportData(r){
+  const holes = r.holes.map((h,i)=>{
+    const s = strokesOf(h);
+    return { no:i+1, par:h.par, s, diff:(s!=null? s-h.par : null), gir:isGIR(h), putts:h.putts };
+  });
+  const st = roundStat(r);
+  const tier = totalTier(st.strokes, st.par);
+  const fwPct = st.fwTotal? Math.round(st.fwHit/st.fwTotal*100) : null;
+  const nine = a => a.filter(x=>x.s!=null);
+  const front = nine(holes.slice(0,9)), back = nine(holes.slice(9,18));
+  const sub = arr => ({
+    s: arr.reduce((a,h)=>a+h.s,0), par: arr.reduce((a,h)=>a+h.par,0),
+    gir: arr.filter(h=>h.gir).length, putts: arr.reduce((a,h)=>a+(h.putts||0),0)
+  });
+  return { r, holes, st, tier, fwPct, front:sub(front), back:sub(back) };
+}
+function reportHTML(r){
+  const d = reportData(r), {st, holes} = d;
+  const diffTxt = st.diff==null? "" : (st.diff>0?"+":"")+st.diff;
+  const badge = d.tier? TIER_LABEL[d.tier] : "";
+  // 逐洞表格：18 列放不下，拆成 前9 / 后9 两张
+  const table = (arr, label)=>{
+    if (!arr.length) return "";
+    return `<table class="rholes"><thead><tr><th>洞</th>${arr.map(h=>`<th>${h.no}</th>`).join("")}<th>小计</th></tr></thead><tbody>
+      <tr><td>Par</td>${arr.map(h=>`<td>${h.par}</td>`).join("")}<td>${arr.reduce((a,h)=>a+h.par,0)}</td></tr>
+      <tr><td>杆</td>${arr.map(h=>`<td class="${h.diff==null?'':(h.diff>0?'bad':(h.diff<0?'good':''))}">${h.s==null?'–':h.s}</td>`).join("")}<td>${d[label].s}</td></tr>
+      <tr><td>±</td>${arr.map(h=>`<td class="${h.diff==null?'':(h.diff>0?'bad':(h.diff<0?'good':''))}">${h.diff==null?'–':(h.diff>0?'+':'')+h.diff}</td>`).join("")}<td>${d[label].s-d[label].par>0?'+':''}${d[label].s-d[label].par}</td></tr>
+      ${arr.some(h=>h.putts!=null)?`<tr><td>推</td>${arr.map(h=>`<td>${h.putts==null?'–':h.putts}</td>`).join("")}<td>${d[label].putts}</td></tr>`:""}
+      </tbody></table>`;
+  };
+  const cells = [
+    ["标准杆", st.par], ["推杆", st.putts], ["GIR", st.gir],
+    ["上球道", d.fwPct==null?"–":d.fwPct+"%"], ["小鸟/老鹰", st.birdie+st.eagle], ["罚杆", st.pens]
+  ];
+  return `<div class="rcard">
+    <div class="rhead">
+      <div class="course">${r.course||"未命名球场"}</div>
+      <div class="date">${r.date||"未标注日期"} · ${st.played} / ${r.holes.length} 洞</div>
+      <div class="bigscore ${d.tier?'tier-'+d.tier:''}">${st.strokes}<small> 杆 ${diffTxt}</small></div>
+      ${badge?`<span class="badge">${badge}</span>`:""}
+    </div>
+    <div class="rgrid">${cells.map(([k,v])=>`<div class="cell"><div class="k">${k}</div><div class="v">${v}</div></div>`).join("")}</div>
+    ${table(holes.slice(0,9),"front")}
+    ${table(holes.slice(9,18),"back")}
+    <div class="rfoot">高尔夫计分器 · 生成于 ${new Date().toLocaleString("zh-CN")}</div>
+  </div>`;
+}
+function reportText(r){
+  const d = reportData(r), {st} = d;
+  const diff = st.diff==null?"":(st.diff>0?"+":"")+st.diff;
+  const L = [];
+  L.push(`【高尔夫成绩单】`);
+  L.push(`${r.course||"未命名球场"} · ${r.date||"未标注日期"}`);
+  L.push(`总杆 ${st.strokes} 杆（标准杆 ${st.par}，${diff}）${d.tier?" · "+TIER_LABEL[d.tier]:""}`);
+  L.push(`推杆 ${st.putts} · GIR ${st.gir} · 上球道 ${d.fwPct==null?"–":d.fwPct+"%"} · 小鸟/老鹰 ${st.birdie+st.eagle} · 罚杆 ${st.pens}`);
+  const row = arr => `洞号  ${arr.map(h=>String(h.no).padStart(2)).join(" ")}\nPar   ${arr.map(h=>String(h.par).padStart(2)).join(" ")}\n杆数  ${arr.map(h=>String(h.s==null?"–":h.s).padStart(2)).join(" ")}\n±     ${arr.map(h=>String(h.diff==null?"–":(h.diff>0?"+":"")+h.diff).padStart(2)).join(" ")}`;
+  if (d.holes.length) L.push("\n前九洞\n"+row(d.holes.slice(0,9)));
+  if (d.holes.length>9) L.push("\n后九洞\n"+row(d.holes.slice(9,18)));
+  return L.join("\n");
+}
+function openReport(){
+  const r = cur();
+  document.getElementById("reportBody").innerHTML = reportHTML(r);
+  document.getElementById("reportOverlay").classList.add("show");
+}
+function closeReport(){ document.getElementById("reportOverlay").classList.remove("show"); }
+function copyReport(){
+  const text = reportText(cur());
+  const fallback = ()=>{
+    const ta = document.createElement("textarea"); ta.value=text;
+    ta.style.position="fixed"; ta.style.opacity="0"; document.body.appendChild(ta); ta.select();
+    try { document.execCommand("copy"); toast("成绩单已复制"); } catch(e){ toast("复制失败，请长按文字选择"); }
+    document.body.removeChild(ta);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText)
+    navigator.clipboard.writeText(text).then(()=>toast("成绩单已复制")).catch(fallback);
+  else fallback();
+}
+/* 原生 canvas 绘制竖版成绩单 PNG（零依赖，手机可长按保存） */
+function saveReportImage(){
+  try {
+    const d = reportData(cur()), {st} = d, r = d.r;
+    const S = 2, W = 720, pad = 44;
+    const rows = Math.ceil(r.holes.length/9);
+    const H = 300 + rows*196 + 90;
+    const cv = document.createElement("canvas"); cv.width=W*S; cv.height=H*S;
+    const g = cv.getContext("2d"); g.scale(S,S);
+    const F = '"PingFang SC","Helvetica Neue","Microsoft YaHei",sans-serif';
+    // 背景
+    g.fillStyle="#f3f2ec"; g.fillRect(0,0,W,H);
+    const grad = g.createLinearGradient(0,0,0,210);
+    grad.addColorStop(0,"#1b8a5c"); grad.addColorStop(1,"#0f6b48");
+    g.fillStyle=grad; g.fillRect(0,0,W,210);
+    g.fillStyle="#fff"; g.textAlign="center";
+    g.font=`700 30px ${F}`; g.fillText(r.course||"未命名球场", W/2, 56);
+    g.font=`400 17px ${F}`; g.fillStyle="rgba(255,255,255,.85)";
+    g.fillText(`${r.date||"未标注日期"} · ${st.played}/${r.holes.length} 洞`, W/2, 86);
+    const diffTxt = st.diff==null?"":(st.diff>0?"+":"")+st.diff;
+    const tierColor = {over100:"#e8ece8",u100:"#ffb27a",u90:"#f2d98a",u80:"#a8e6c8",under:"#7dffc0"}[d.tier]||"#fff";
+    g.fillStyle=tierColor; g.font=`800 78px ${F}`; g.fillText(String(st.strokes), W/2, 160);
+    g.font=`600 20px ${F}`; g.fillText(`杆 ${diffTxt}${d.tier?" · "+TIER_LABEL[d.tier]:""}`, W/2, 192);
+    // 统计格
+    const stats=[["标准杆",st.par],["推杆",st.putts],["GIR",st.gir],["上球道",d.fwPct==null?"–":d.fwPct+"%"],["小鸟/老鹰",st.birdie+st.eagle],["罚杆",st.pens]];
+    const cw=(W-pad*2-2*10)/3, ch=64, y0=228;
+    stats.forEach((s,i)=>{
+      const x=pad+(i%3)*(cw+10), y=y0+Math.floor(i/3)*(ch+8);
+      g.fillStyle="#fff"; roundRect(g,x,y,cw,ch,12); g.fill();
+      g.textAlign="center"; g.fillStyle="#7c8a82"; g.font=`400 14px ${F}`; g.fillText(s[0],x+cw/2,y+23);
+      g.fillStyle="#1c2420"; g.font=`700 24px ${F}`; g.fillText(String(s[1]),x+cw/2,y+50);
+    });
+    // 逐洞表：每 9 洞一块
+    for (let base=0; base<r.holes.length; base+=9){
+      const arr=d.holes.slice(base,base+9), top=y0+2*(ch+8)+18+(base/9)*196;
+      g.fillStyle="#fff"; roundRect(g,pad,top,W-pad*2,178,12); g.fill();
+      g.textAlign="left"; g.fillStyle="#17694a"; g.font=`700 16px ${F}`;
+      g.fillText(base===0?"前九洞":"后九洞", pad+14, top+24);
+      const labels=["洞","Par","杆","±"];
+      const colW=(W-pad*2-120)/9;
+      labels.forEach((lb,ri)=>{
+        const rowY=top+38+ri*32;
+        g.textAlign="right"; g.fillStyle="#7c8a82"; g.font=`600 13px ${F}`;
+        g.fillText(lb, pad+112, rowY+11);
+        arr.forEach((h,ci)=>{
+          const cx=pad+120+ci*colW+colW/2;
+          g.textAlign="center";
+          let val="–", color="#c2c9c4";
+          if (ri===0) val=String(h.no);
+          else if (ri===1) val=String(h.par);
+          else if (ri===2 && h.s!=null){ val=String(h.s); color="#1c2420"; }
+          else if (ri===3 && h.diff!=null){ val=(h.diff>0?"+":"")+h.diff; color=h.diff<0?"#17694a":(h.diff>0?"#c2410c":"#1c2420"); }
+          g.fillStyle=color; g.font=`${ri===0?"600":"700"} 14px ${F}`;
+          g.fillText(val, cx, rowY+11);
+        });
+      });
+    }
+    g.textAlign="center"; g.fillStyle="#8a958f"; g.font=`400 14px ${F}`;
+    g.fillText("高尔夫计分器 · "+new Date().toLocaleDateString("zh-CN"), W/2, H-30);
+    const url=cv.toDataURL("image/png");
+    const a=document.createElement("a"); a.href=url; a.download=`成绩单_${(r.date||"round").replace(/\//g,"-")}.png`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    toast("成绩单图片已生成，可在下载/相册中查看");
+  } catch(e){ toast("图片生成失败，可改用「复制文字」"); }
+}
+function roundRect(g,x,y,w,h,r){
+  g.beginPath(); g.moveTo(x+r,y); g.arcTo(x+w,y,x+w,y+h,r); g.arcTo(x+w,y+h,x,y+h,r);
+  g.arcTo(x,y+h,x,y,r); g.arcTo(x,y,x+w,y,r); g.closePath();
+}
+
 /* ============ 技术统计 ============ */
 function renderTech(r){
   let strokes=0,par=0,putts=0,girCnt=0,played=0,girRounds=0,fwHit=0,fwTotal=0;
@@ -1787,6 +1978,9 @@ function closeModal(skipWrite){
 document.getElementById("overlay").addEventListener("click", e=>{
   if (e.target===e.currentTarget) closeModal();
 });
+document.getElementById("reportOverlay").addEventListener("click", e=>{
+  if (e.target===e.currentTarget) closeReport();
+});
 
 /* ============ 球场库 / 拼场 ============ */
 function courseById(id){ return state.courses.find(c=>c.id===id); }
@@ -2058,6 +2252,7 @@ document.getElementById("btnTopNew").onclick = ()=>{
   const r = newRound();
   state.rounds.unshift(r); state.currentId = r.id; render(); toast("已开始新一轮 ⛳");
 };
+document.getElementById("btnReport").onclick = openReport;
 document.getElementById("btnDel").onclick = ()=>{
   if (state.rounds.length<=1){ toast("至少保留一轮"); return; }
   if (!confirm("确定删除这一轮成绩？")) return;
