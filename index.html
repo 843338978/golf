@@ -350,6 +350,9 @@
   .rholes td { padding:5px 2px; text-align:center; border:1px solid #e9ede5; }
   .rholes tr.sub td { background:#f6f8f4; font-weight:700; }
   .rholes td.good { color:var(--good); font-weight:800; }
+  .rholes td.eagle { color:#b8860b; font-weight:800; }   /* 老鹰及以上：金 */
+  .rholes td.birdie { color:#0fae6b; font-weight:800; }  /* 小鸟：翠绿 */
+  .rholes td.par { color:#1d6fbd; font-weight:700; }     /* Par：蓝 */
   .rholes td.bad { color:var(--accent); font-weight:800; }
   .rfoot { text-align:center; font-size:10.5px; color:var(--muted); margin-top:12px; border-top:1px solid var(--line); padding-top:8px; }
   @media print {
@@ -521,7 +524,7 @@
       <button class="ghost" onclick="copyReport()">📄 复制文字</button>
       <button class="primary" onclick="saveReportImage()">🖼️ 存为图片</button>
     </div>
-    <div class="hint" style="margin-top:8px;text-align:center">图片可直接发微信；文字版适合贴到群聊 / 备忘录。电脑上还可用浏览器打印存 PDF。</div>
+    <div class="hint" style="margin-top:8px;text-align:center">图片可直接发微信；文字版适合贴到群聊 / 备忘录。电脑可用浏览器打印存 PDF。<br>成绩颜色：老鹰金 · 小鸟翠绿 · Par 蓝 · 柏忌黑 · 双柏忌+ 橙</div>
   </div>
 </div>
 
@@ -1554,6 +1557,16 @@ function renderDiag(r){
 }
 
 /* ============ 成绩单 ============ */
+/* 单洞成绩分级：老鹰金 / 小鸟翠绿 / Par蓝 / 柏忌默认 / 双柏忌以上橙 */
+const SCORE_GRADE = { eagle:"#b8860b", birdie:"#0fae6b", par:"#1d6fbd", bogey:"#1c2420", bad:"#c2410c" };
+function holeGrade(diff){
+  if (diff==null) return "";
+  if (diff<=-2) return "eagle";
+  if (diff===-1) return "birdie";
+  if (diff===0) return "par";
+  if (diff===1) return "bogey";
+  return "bad";
+}
 function reportData(r){
   const holes = r.holes.map((h,i)=>{
     const s = strokesOf(h);
@@ -1579,14 +1592,14 @@ function reportHTML(r){
     if (!arr.length) return "";
     return `<table class="rholes"><thead><tr><th>洞</th>${arr.map(h=>`<th>${h.no}</th>`).join("")}<th>小计</th></tr></thead><tbody>
       <tr><td>Par</td>${arr.map(h=>`<td>${h.par}</td>`).join("")}<td>${arr.reduce((a,h)=>a+h.par,0)}</td></tr>
-      <tr><td>杆</td>${arr.map(h=>`<td class="${h.diff==null?'':(h.diff>0?'bad':(h.diff<0?'good':''))}">${h.s==null?'–':h.s}</td>`).join("")}<td>${d[label].s}</td></tr>
-      <tr><td>±</td>${arr.map(h=>`<td class="${h.diff==null?'':(h.diff>0?'bad':(h.diff<0?'good':''))}">${h.diff==null?'–':(h.diff>0?'+':'')+h.diff}</td>`).join("")}<td>${d[label].s-d[label].par>0?'+':''}${d[label].s-d[label].par}</td></tr>
+      <tr><td>杆</td>${arr.map(h=>`<td class="${holeGrade(h.diff)}">${h.s==null?'–':h.s}</td>`).join("")}<td>${d[label].s}</td></tr>
+      <tr><td>±</td>${arr.map(h=>`<td class="${holeGrade(h.diff)}">${h.diff==null?'–':(h.diff>0?'+':'')+h.diff}</td>`).join("")}<td>${d[label].s-d[label].par>0?'+':''}${d[label].s-d[label].par}</td></tr>
       ${arr.some(h=>h.putts!=null)?`<tr><td>推</td>${arr.map(h=>`<td>${h.putts==null?'–':h.putts}</td>`).join("")}<td>${d[label].putts}</td></tr>`:""}
       </tbody></table>`;
   };
   const cells = [
     ["标准杆", st.par], ["推杆", st.putts], ["GIR", st.gir],
-    ["上球道", d.fwPct==null?"–":d.fwPct+"%"], ["小鸟/老鹰", st.birdie+st.eagle], ["罚杆", st.pens]
+    ["小鸟", st.birdie], ["老鹰", st.eagle], ["罚杆", st.pens]
   ];
   return `<div class="rcard">
     <div class="rhead">
@@ -1608,7 +1621,7 @@ function reportText(r){
   L.push(`【高尔夫成绩单】`);
   L.push(`${r.course||"未命名球场"} · ${r.date||"未标注日期"}`);
   L.push(`总杆 ${st.strokes} 杆（标准杆 ${st.par}，${diff}）${d.tier?" · "+TIER_LABEL[d.tier]:""}`);
-  L.push(`推杆 ${st.putts} · GIR ${st.gir} · 上球道 ${d.fwPct==null?"–":d.fwPct+"%"} · 小鸟/老鹰 ${st.birdie+st.eagle} · 罚杆 ${st.pens}`);
+  L.push(`推杆 ${st.putts} · GIR ${st.gir} · 小鸟 ${st.birdie} · 老鹰 ${st.eagle} · 罚杆 ${st.pens}`);
   const row = arr => `洞号  ${arr.map(h=>String(h.no).padStart(2)).join(" ")}\nPar   ${arr.map(h=>String(h.par).padStart(2)).join(" ")}\n杆数  ${arr.map(h=>String(h.s==null?"–":h.s).padStart(2)).join(" ")}\n±     ${arr.map(h=>String(h.diff==null?"–":(h.diff>0?"+":"")+h.diff).padStart(2)).join(" ")}`;
   if (d.holes.length) L.push("\n前九洞\n"+row(d.holes.slice(0,9)));
   if (d.holes.length>9) L.push("\n后九洞\n"+row(d.holes.slice(9,18)));
@@ -1656,7 +1669,7 @@ function saveReportImage(){
     g.fillStyle=tierColor; g.font=`800 78px ${F}`; g.fillText(String(st.strokes), W/2, 160);
     g.font=`600 20px ${F}`; g.fillText(`杆 ${diffTxt}${d.tier?" · "+TIER_LABEL[d.tier]:""}`, W/2, 192);
     // 统计格
-    const stats=[["标准杆",st.par],["推杆",st.putts],["GIR",st.gir],["上球道",d.fwPct==null?"–":d.fwPct+"%"],["小鸟/老鹰",st.birdie+st.eagle],["罚杆",st.pens]];
+    const stats=[["标准杆",st.par],["推杆",st.putts],["GIR",st.gir],["小鸟",st.birdie],["老鹰",st.eagle],["罚杆",st.pens]];
     const cw=(W-pad*2-2*10)/3, ch=64, y0=228;
     stats.forEach((s,i)=>{
       const x=pad+(i%3)*(cw+10), y=y0+Math.floor(i/3)*(ch+8);
@@ -1682,8 +1695,8 @@ function saveReportImage(){
           let val="–", color="#c2c9c4";
           if (ri===0) val=String(h.no);
           else if (ri===1) val=String(h.par);
-          else if (ri===2 && h.s!=null){ val=String(h.s); color="#1c2420"; }
-          else if (ri===3 && h.diff!=null){ val=(h.diff>0?"+":"")+h.diff; color=h.diff<0?"#17694a":(h.diff>0?"#c2410c":"#1c2420"); }
+          else if (ri===2 && h.s!=null){ val=String(h.s); color=SCORE_GRADE[holeGrade(h.diff)]||"#1c2420"; }
+          else if (ri===3 && h.diff!=null){ val=(h.diff>0?"+":"")+h.diff; color=SCORE_GRADE[holeGrade(h.diff)]||"#1c2420"; }
           g.fillStyle=color; g.font=`${ri===0?"600":"700"} 14px ${F}`;
           g.fillText(val, cx, rowY+11);
         });
